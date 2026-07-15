@@ -1,0 +1,528 @@
+{
+    "namespace": "GoodbyeSpyDesignSystem_331d04",
+    "components": [
+        {"name": "Accordion", "sourcePath": "components/display/Accordion.jsx"},
+        {"name": "Badge", "sourcePath": "components/display/Badge.jsx"},
+        {"name": "Card", "sourcePath": "components/display/Card.jsx"},
+        {"name": "Marquee", "sourcePath": "components/display/Marquee.jsx"},
+        {"name": "Stamp", "sourcePath": "components/display/Stamp.jsx"},
+        {"name": "StatCard", "sourcePath": "components/display/StatCard.jsx"},
+        {"name": "StatusPill", "sourcePath": "components/display/StatusPill.jsx"},
+        {"name": "Timeline", "sourcePath": "components/display/Timeline.jsx"},
+        {"name": "Button", "sourcePath": "components/forms/Button.jsx"},
+        {"name": "Checkbox", "sourcePath": "components/forms/Checkbox.jsx"},
+        {"name": "Input", "sourcePath": "components/forms/Input.jsx"},
+        {"name": "Select", "sourcePath": "components/forms/Select.jsx"},
+        {"name": "Footer", "sourcePath": "components/navigation/Footer.jsx"},
+        {"name": "Header", "sourcePath": "components/navigation/Header.jsx"}
+    ],
+    "startingPoints": [
+        {
+            "name": "Button",
+            "path": "components/forms/Button.jsx",
+            "previewPath": "components/forms/forms.card.html",
+            "kind": "component",
+            "section": "Components",
+            "subtitle": "Pill button — primary, secondary, ghost, danger",
+            "viewport": "700x260"
+        },
+        {
+            "name": "Card",
+            "path": "components/display/Card.jsx",
+            "previewPath": "components/display/display.card.html",
+            "kind": "component",
+            "section": "Components",
+            "subtitle": "Poster / white / sunken / inverse surfaces",
+            "viewport": "700x300"
+        },
+        {
+            "name": "dashboard",
+            "path": "ui_kits/dashboard/index.html",
+            "previewPath": "ui_kits/dashboard/index.html",
+            "kind": "screen",
+            "section": "Dashboard",
+            "subtitle": "GoodbyeSpy customer dashboard",
+            "viewport": "1440x900"
+        },
+        {
+            "name": "website",
+            "path": "ui_kits/website/index.html",
+            "previewPath": "ui_kits/website/index.html",
+            "kind": "screen",
+            "section": "Website",
+            "subtitle": "GoodbyeSpy marketing landing page",
+            "viewport": "1440x900"
+        }
+    ],
+    "cards": [
+        {
+            "path": "guidelines/brand-iconography.html",
+            "group": "Brand",
+            "viewport": "700x170",
+            "subtitle": "Unicode glyph set + Lucide strokes where pictograms are unavoidable",
+            "name": "Iconography"
+        },
+        {
+            "path": "guidelines/brand-logo.html",
+            "group": "Brand",
+            "viewport": "700x210",
+            "subtitle": "The waving spy — mark, tile, and cream variant",
+            "name": "Logo"
+        },
+        {
+            "path": "guidelines/brand-motifs.html",
+            "group": "Brand",
+            "viewport": "700x220",
+            "subtitle": "Halftone · awning stripe · perforation · starburst · script",
+            "name": "Signature motifs"
+        },
+        {
+            "path": "guidelines/brand-voice.html",
+            "group": "Brand",
+            "viewport": "700x200",
+            "subtitle": "Plainspoken, warm, one wink per page",
+            "name": "Voice & tone"
+        },
+        {
+            "path": "guidelines/colors-accents.html",
+            "group": "Colors",
+            "viewport": "700x170",
+            "subtitle": "Retro poster accents — use sparingly",
+            "name": "Retro accents"
+        },
+        {
+            "path": "guidelines/colors-creams.html",
+            "group": "Colors",
+            "viewport": "700x170",
+            "subtitle": "Warm paper neutrals — page & surfaces",
+            "name": "Creams & warm neutrals"
+        },
+        {
+            "path": "guidelines/colors-greens.html",
+            "group": "Colors",
+            "viewport": "700x170",
+            "subtitle": "Deep spy green — the brand family",
+            "name": "Primary greens"
+        },
+        {
+            "path": "guidelines/colors-status.html",
+            "group": "Colors",
+            "viewport": "700x150",
+            "subtitle": "Warm-shifted status pairs (text on bg)",
+            "name": "Status colors"
+        },
+        {
+            "path": "components/display/display.card.html",
+            "group": "Components",
+            "viewport": "700x620",
+            "subtitle": "Card, Badge, StatusPill, Stamp, Marquee, StatCard, Timeline, Accordion",
+            "name": "Display"
+        },
+        {
+            "path": "components/forms/forms.card.html",
+            "group": "Components",
+            "viewport": "700x320",
+            "subtitle": "Button, Input, Select, Checkbox",
+            "name": "Forms"
+        },
+        {
+            "path": "components/navigation/navigation.card.html",
+            "group": "Components",
+            "viewport": "900x420",
+            "subtitle": "Sticky header + deep-green footer",
+            "name": "Navigation"
+        },
+        {
+            "path": "ui_kits/dashboard/index.html",
+            "group": "Dashboard",
+            "viewport": "1440x900",
+            "subtitle": "Customer dashboard — stats, requests, timeline, profile",
+            "name": "Dashboard"
+        },
+        {
+            "path": "guidelines/motion.html",
+            "group": "Foundations",
+            "viewport": "700x200",
+            "subtitle": "Stamp-into-place motion — hover nudges, press flattens",
+            "name": "Motion"
+        },
+        {
+            "path": "guidelines/shape-elevation.html",
+            "group": "Foundations",
+            "viewport": "700x200",
+            "subtitle": "Poster borders + hard offset shadows; soft shadows for app only",
+            "name": "Shape & elevation"
+        },
+        {
+            "path": "guidelines/spacing.html",
+            "group": "Foundations",
+            "viewport": "700x160",
+            "subtitle": "4px grid — component & layout steps",
+            "name": "Spacing"
+        },
+        {
+            "path": "guidelines/type-body.html",
+            "group": "Type",
+            "viewport": "700x240",
+            "subtitle": "Familjen Grotesk — warm grotesque for UI & body",
+            "name": "Body type"
+        },
+        {
+            "path": "guidelines/type-display.html",
+            "group": "Type",
+            "viewport": "700x240",
+            "subtitle": "Besley 700 — Clarendon slab, the 50s ad voice",
+            "name": "Display type"
+        },
+        {
+            "path": "guidelines/type-scale.html",
+            "group": "Type",
+            "viewport": "700x220",
+            "subtitle": "The full scale in use",
+            "name": "Type scale"
+        },
+        {
+            "path": "guidelines/type-wordmark.html",
+            "group": "Type",
+            "viewport": "700x190",
+            "subtitle": "Arima wordmark + Yellowtail script accents",
+            "name": "Wordmark & script"
+        },
+        {
+            "path": "ui_kits/website/index.html",
+            "group": "Website",
+            "viewport": "1440x900",
+            "subtitle": "Marketing landing — hero, features, pricing, FAQ, CTA, footer",
+            "name": "Landing page"
+        }
+    ],
+    "templates": [],
+    "hasThumbnailHtml": false,
+    "globalCssPaths": [
+        "tokens/fonts.css",
+        "tokens/colors.css",
+        "tokens/typography.css",
+        "tokens/spacing.css",
+        "tokens/effects.css",
+        "tokens/motion.css",
+        "tokens/base.css",
+        "styles.css"
+    ],
+    "tokens": [
+        {"name": "--green-950", "value": "#022C22", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--green-900", "value": "#064E3B", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--green-800", "value": "#0A5C45", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--green-700", "value": "#116A50", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--green-500", "value": "#2E8B6C", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--green-300", "value": "#9CCDB6", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--green-150", "value": "#D3E7DA", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--green-100", "value": "#E7F1E9", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--sage-500", "value": "#839788", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--cream-50", "value": "#FFFBF5", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--cream-100", "value": "#FDF2E1", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--cream-200", "value": "#F6E9D4", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--cream-300", "value": "#EEE0CB", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--taupe-400", "value": "#BAA898", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--taupe-600", "value": "#8C7A6B", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--rust-600", "value": "#B5541F", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--rust-100", "value": "#F8E4D4", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--teal-600", "value": "#37878F", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--teal-100", "value": "#DDEEEF", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--mustard-500", "value": "#C99A2C", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--mustard-100", "value": "#F7ECD2", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--plum-900", "value": "#3B1F2B", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--plum-300", "value": "#AB7E92", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--ink-900", "value": "#262626", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--ink-700", "value": "rgba(38, 38, 38, 0.80)", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--ink-500", "value": "rgba(38, 38, 38, 0.62)", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--ink-300", "value": "rgba(38, 38, 38, 0.40)", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--status-success", "value": "#116A50", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--status-success-bg", "value": "#E7F1E9", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--status-progress", "value": "#37878F", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--status-progress-bg", "value": "#DDEEEF", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--status-warning", "value": "#9A5B14", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--status-warning-bg", "value": "#FAEDD3", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--status-danger", "value": "#9F2D20", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--status-danger-bg", "value": "#F9E3DF", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--status-neutral", "value": "#8C7A6B", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--status-neutral-bg", "value": "#F6E9D4", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--brand", "value": "var(--green-900)", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--brand-hover", "value": "var(--green-800)", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--brand-deep", "value": "var(--green-950)", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--surface-page", "value": "var(--cream-50)", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--surface-card", "value": "#FFFFFF", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--surface-sunken", "value": "var(--cream-100)", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--surface-tint", "value": "var(--green-100)", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--surface-inverse", "value": "var(--green-950)", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--text-body", "value": "var(--ink-900)", "kind": "font", "definedIn": "tokens/colors.css"},
+        {"name": "--text-secondary", "value": "var(--ink-700)", "kind": "font", "definedIn": "tokens/colors.css"},
+        {"name": "--text-muted", "value": "var(--ink-500)", "kind": "font", "definedIn": "tokens/colors.css"},
+        {"name": "--text-brand", "value": "var(--green-900)", "kind": "font", "definedIn": "tokens/colors.css"},
+        {"name": "--text-on-dark", "value": "var(--cream-50)", "kind": "font", "definedIn": "tokens/colors.css"},
+        {
+            "name": "--text-on-dark-soft",
+            "value": "rgba(255, 251, 245, 0.78)",
+            "kind": "font",
+            "definedIn": "tokens/colors.css"
+        },
+        {"name": "--border-soft", "value": "rgba(38, 38, 38, 0.10)", "kind": "color", "definedIn": "tokens/colors.css"},
+        {
+            "name": "--border-strong",
+            "value": "rgba(38, 38, 38, 0.18)",
+            "kind": "color",
+            "definedIn": "tokens/colors.css"
+        },
+        {
+            "name": "--border-on-dark",
+            "value": "rgba(255, 251, 245, 0.16)",
+            "kind": "color",
+            "definedIn": "tokens/colors.css"
+        },
+        {"name": "--link", "value": "var(--green-700)", "kind": "color", "definedIn": "tokens/colors.css"},
+        {"name": "--link-hover", "value": "var(--green-900)", "kind": "color", "definedIn": "tokens/colors.css"},
+        {
+            "name": "--font-display",
+            "value": "'Besley', Georgia, serif",
+            "kind": "font",
+            "definedIn": "tokens/typography.css"
+        },
+        {
+            "name": "--font-body",
+            "value": "'Familjen Grotesk', system-ui, sans-serif",
+            "kind": "font",
+            "definedIn": "tokens/typography.css"
+        },
+        {
+            "name": "--font-script",
+            "value": "'Yellowtail', cursive",
+            "kind": "font",
+            "definedIn": "tokens/typography.css"
+        },
+        {
+            "name": "--font-logo",
+            "value": "'Arima', 'Besley', serif",
+            "kind": "font",
+            "definedIn": "tokens/typography.css"
+        },
+        {
+            "name": "--font-mono",
+            "value": "'SF Mono', 'Menlo', ui-monospace, monospace",
+            "kind": "font",
+            "definedIn": "tokens/typography.css"
+        },
+        {"name": "--text-hero", "value": "4.5rem", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--text-display", "value": "3.25rem", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--text-h2", "value": "2.375rem", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--text-h3", "value": "1.625rem", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--text-h4", "value": "1.25rem", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--text-lead", "value": "1.25rem", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--text-base", "value": "1rem", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--text-sm", "value": "0.9375rem", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--text-caption", "value": "0.75rem", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--leading-display", "value": "1.02", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--leading-heading", "value": "1.12", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--leading-body", "value": "1.6", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--leading-tight", "value": "1.35", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--tracking-display", "value": "-0.025em", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--tracking-body", "value": "-0.002em", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--tracking-caps", "value": "0.08em", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--weight-display", "value": "700", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--weight-display-medium", "value": "600", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--weight-regular", "value": "400", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--weight-medium", "value": "500", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--weight-semibold", "value": "600", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--weight-bold", "value": "700", "kind": "font", "definedIn": "tokens/typography.css"},
+        {"name": "--space-1", "value": "4px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--space-2", "value": "8px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--space-3", "value": "12px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--space-4", "value": "16px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--space-5", "value": "20px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--space-6", "value": "24px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--space-8", "value": "32px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--space-10", "value": "40px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--space-12", "value": "48px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--space-16", "value": "64px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--space-20", "value": "80px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--space-24", "value": "96px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--container-max", "value": "1152px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--container-narrow", "value": "880px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--section-pad-y", "value": "96px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--gutter", "value": "24px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--pad-card", "value": "32px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--pad-card-compact", "value": "20px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--pad-btn-y", "value": "10px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--pad-btn-x", "value": "22px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--pad-input-y", "value": "11px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--pad-input-x", "value": "14px", "kind": "spacing", "definedIn": "tokens/spacing.css"},
+        {"name": "--radius-sm", "value": "8px", "kind": "radius", "definedIn": "tokens/effects.css"},
+        {"name": "--radius-md", "value": "12px", "kind": "radius", "definedIn": "tokens/effects.css"},
+        {"name": "--radius-lg", "value": "16px", "kind": "radius", "definedIn": "tokens/effects.css"},
+        {"name": "--radius-xl", "value": "24px", "kind": "radius", "definedIn": "tokens/effects.css"},
+        {"name": "--radius-pill", "value": "999px", "kind": "radius", "definedIn": "tokens/effects.css"},
+        {
+            "name": "--shadow-offset-sm",
+            "value": "3px 3px 0 var(--green-900)",
+            "kind": "shadow",
+            "definedIn": "tokens/effects.css"
+        },
+        {
+            "name": "--shadow-offset",
+            "value": "5px 5px 0 var(--green-900)",
+            "kind": "shadow",
+            "definedIn": "tokens/effects.css"
+        },
+        {
+            "name": "--shadow-offset-taupe",
+            "value": "5px 5px 0 var(--taupe-400)",
+            "kind": "shadow",
+            "definedIn": "tokens/effects.css"
+        },
+        {
+            "name": "--shadow-offset-cream",
+            "value": "4px 4px 0 var(--cream-300)",
+            "kind": "shadow",
+            "definedIn": "tokens/effects.css"
+        },
+        {
+            "name": "--shadow-xs",
+            "value": "0 1px 2px rgba(74, 52, 30, 0.06)",
+            "kind": "shadow",
+            "definedIn": "tokens/effects.css"
+        },
+        {
+            "name": "--shadow-sm",
+            "value": "0 2px 6px rgba(74, 52, 30, 0.08)",
+            "kind": "shadow",
+            "definedIn": "tokens/effects.css"
+        },
+        {
+            "name": "--shadow-md",
+            "value": "0 6px 18px rgba(74, 52, 30, 0.10)",
+            "kind": "shadow",
+            "definedIn": "tokens/effects.css"
+        },
+        {
+            "name": "--shadow-lg",
+            "value": "0 16px 40px rgba(74, 52, 30, 0.14)",
+            "kind": "shadow",
+            "definedIn": "tokens/effects.css"
+        },
+        {
+            "name": "--shadow-press",
+            "value": "3px 3px 0 var(--green-950)",
+            "kind": "shadow",
+            "definedIn": "tokens/effects.css"
+        },
+        {
+            "name": "--shadow-press-soft",
+            "value": "3px 3px 0 rgba(2, 44, 34, 0.25)",
+            "kind": "shadow",
+            "definedIn": "tokens/effects.css"
+        },
+        {
+            "name": "--shadow-press-cream",
+            "value": "3px 3px 0 var(--taupe-400)",
+            "kind": "shadow",
+            "definedIn": "tokens/effects.css"
+        },
+        {
+            "name": "--focus-ring",
+            "value": "0 0 0 3px rgba(46, 139, 108, 0.35)",
+            "kind": "shadow",
+            "definedIn": "tokens/effects.css"
+        },
+        {
+            "name": "--border-poster",
+            "value": "2px solid var(--green-900)",
+            "kind": "other",
+            "definedIn": "tokens/effects.css",
+            "annotation": "other"
+        },
+        {
+            "name": "--border-card",
+            "value": "1.5px solid rgba(38, 38, 38, 0.12)",
+            "kind": "other",
+            "definedIn": "tokens/effects.css",
+            "annotation": "other"
+        },
+        {
+            "name": "--border-hairline",
+            "value": "1px solid rgba(38, 38, 38, 0.08)",
+            "kind": "other",
+            "definedIn": "tokens/effects.css",
+            "annotation": "other"
+        },
+        {
+            "name": "--border-dashed-brand",
+            "value": "2px dashed rgba(6, 78, 59, 0.4)",
+            "kind": "other",
+            "definedIn": "tokens/effects.css",
+            "annotation": "other"
+        },
+        {
+            "name": "--ease-out",
+            "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+            "kind": "other",
+            "definedIn": "tokens/motion.css",
+            "annotation": "other"
+        },
+        {
+            "name": "--ease-spring",
+            "value": "cubic-bezier(0.34, 1.56, 0.64, 1)",
+            "kind": "other",
+            "definedIn": "tokens/motion.css",
+            "annotation": "other"
+        },
+        {
+            "name": "--ease-in-out",
+            "value": "cubic-bezier(0.65, 0, 0.35, 1)",
+            "kind": "other",
+            "definedIn": "tokens/motion.css",
+            "annotation": "other"
+        },
+        {
+            "name": "--duration-fast",
+            "value": "130ms",
+            "kind": "other",
+            "definedIn": "tokens/motion.css",
+            "annotation": "other"
+        },
+        {
+            "name": "--duration-base",
+            "value": "220ms",
+            "kind": "other",
+            "definedIn": "tokens/motion.css",
+            "annotation": "other"
+        },
+        {
+            "name": "--duration-slow",
+            "value": "400ms",
+            "kind": "other",
+            "definedIn": "tokens/motion.css",
+            "annotation": "other"
+        },
+        {
+            "name": "--hover-lift",
+            "value": "translate(-2px, -2px)",
+            "kind": "other",
+            "definedIn": "tokens/motion.css",
+            "annotation": "other"
+        },
+        {
+            "name": "--press-sink",
+            "value": "translate(2px, 2px)",
+            "kind": "other",
+            "definedIn": "tokens/motion.css",
+            "annotation": "other"
+        }
+    ],
+    "themes": [],
+    "fonts": [],
+    "brandFonts": [
+        {"family": "Besley", "status": "ok", "tokens": ["--font-display"], "path": "tokens/typography.css"},
+        {"family": "Familjen Grotesk", "status": "ok", "tokens": ["--font-body"], "path": "tokens/typography.css"},
+        {"family": "Yellowtail", "status": "ok", "tokens": ["--font-script"], "path": "tokens/typography.css"},
+        {"family": "Arima", "status": "ok", "tokens": ["--font-logo"], "path": "tokens/typography.css"}
+    ],
+    "source": "spa"
+}

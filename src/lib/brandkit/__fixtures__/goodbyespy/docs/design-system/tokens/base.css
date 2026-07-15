@@ -1,0 +1,107 @@
+/* ============================================================
+   GoodbyeSpy — Base element styles + pattern utilities
+   ============================================================ */
+body {
+    margin: 0;
+    background: var(--surface-page);
+    color: var(--text-body);
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    line-height: var(--leading-body);
+    letter-spacing: var(--tracking-body);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+    font-family: var(--font-display);
+    font-weight: var(--weight-display);
+    color: var(--text-brand);
+    letter-spacing: var(--tracking-display);
+    line-height: var(--leading-heading);
+    margin: 0;
+}
+
+h1 {
+    font-size: var(--text-display);
+    line-height: var(--leading-display);
+}
+h2 {
+    font-size: var(--text-h2);
+}
+h3 {
+    font-size: var(--text-h3);
+    font-weight: var(--weight-display-medium);
+}
+
+h4,
+h5 {
+    font-family: var(--font-body);
+    font-weight: var(--weight-semibold);
+    color: var(--text-body);
+    line-height: var(--leading-tight);
+    margin: 0;
+}
+h4 {
+    font-size: var(--text-h4);
+}
+
+p {
+    margin: 0;
+    text-wrap: pretty;
+}
+
+a {
+    color: var(--link);
+    text-decoration: none;
+    transition: color var(--duration-fast) var(--ease-out);
+}
+a:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+::selection {
+    background: var(--green-150);
+    color: var(--green-950);
+}
+
+button {
+    font-family: var(--font-body);
+}
+input,
+select,
+textarea {
+    font-family: var(--font-body);
+}
+
+/* --- Script accent: one word per headline, max --- */
+.gs-script {
+    font-family: var(--font-script);
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1;
+}
+
+/* --- Pattern utilities (pure CSS, no images) --- */
+.gs-halftone {
+    background-image: radial-gradient(circle, rgba(6, 78, 59, 0.16) 1.5px, transparent 1.5px);
+    background-size: 14px 14px;
+}
+.gs-halftone--cream {
+    background-image: radial-gradient(circle, rgba(255, 251, 245, 0.18) 1.5px, transparent 1.5px);
+    background-size: 14px 14px;
+}
+.gs-awning {
+    background-image: repeating-linear-gradient(90deg, var(--green-900) 0 28px, var(--cream-50) 28px 56px);
+}
+.gs-perforation {
+    background-image: linear-gradient(90deg, var(--taupe-400) 0 8px, transparent 8px 16px);
+    background-size: 16px 2px;
+    background-repeat: repeat-x;
+    background-position: center;
+    height: 2px;
+}

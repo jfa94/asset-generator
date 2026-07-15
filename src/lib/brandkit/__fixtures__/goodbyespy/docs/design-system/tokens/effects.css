@@ -1,0 +1,40 @@
+/* ============================================================
+   GoodbyeSpy — Shape & elevation tokens
+   Print-shop physics: hard offset shadows (like layered paper),
+   2px poster borders, pill buttons. Soft warm shadows remain
+   for calm app surfaces only.
+   ============================================================ */
+:root {
+    /* Radii */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    --radius-pill: 999px;
+
+    /* Hard offset shadows — the signature. Layered-paper look. */
+    --shadow-offset-sm: 3px 3px 0 var(--green-900);
+    --shadow-offset: 5px 5px 0 var(--green-900);
+    --shadow-offset-taupe: 5px 5px 0 var(--taupe-400);
+    --shadow-offset-cream: 4px 4px 0 var(--cream-300);
+
+    /* Soft warm shadows — app surfaces (dashboard), never marketing posters */
+    --shadow-xs: 0 1px 2px rgba(74, 52, 30, 0.06);
+    --shadow-sm: 0 2px 6px rgba(74, 52, 30, 0.08);
+    --shadow-md: 0 6px 18px rgba(74, 52, 30, 0.1);
+    --shadow-lg: 0 16px 40px rgba(74, 52, 30, 0.14);
+
+    /* Button press shadow */
+    --shadow-press: 3px 3px 0 var(--green-950);
+    --shadow-press-soft: 3px 3px 0 rgba(2, 44, 34, 0.25);
+    --shadow-press-cream: 3px 3px 0 var(--taupe-400);
+
+    /* Focus ring */
+    --focus-ring: 0 0 0 3px rgba(46, 139, 108, 0.35);
+
+    /* Borders */
+    --border-poster: 2px solid var(--green-900); /* @kind other */
+    --border-card: 1.5px solid rgba(38, 38, 38, 0.12); /* @kind other */
+    --border-hairline: 1px solid rgba(38, 38, 38, 0.08); /* @kind other */
+    --border-dashed-brand: 2px dashed rgba(6, 78, 59, 0.4); /* @kind other */
+}

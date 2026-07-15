@@ -1,0 +1,74 @@
+/* ============================================================
+   GoodbyeSpy — Color tokens
+   Deep spy green + warm paper creams, with retro accents pulled
+   from the brand illustrations (lamp rust, CRT teal, plum coat).
+   ============================================================ */
+:root {
+    /* --- Greens (primary family) --- */
+    --green-950: #022c22;
+    --green-900: #064e3b; /* brand primary */
+    --green-800: #0a5c45;
+    --green-700: #116a50;
+    --green-500: #2e8b6c;
+    --green-300: #9ccdb6;
+    --green-150: #d3e7da;
+    --green-100: #e7f1e9;
+    --sage-500: #839788; /* muted sage, secondary */
+
+    /* --- Creams & warm neutrals (paper family) --- */
+    --cream-50: #fffbf5; /* page background */
+    --cream-100: #fdf2e1;
+    --cream-200: #f6e9d4;
+    --cream-300: #eee0cb;
+    --taupe-400: #baa898;
+    --taupe-600: #8c7a6b;
+
+    /* --- Retro poster accents --- */
+    --rust-600: #b5541f; /* poster rust; use sparingly */
+    --rust-100: #f8e4d4;
+    --teal-600: #37878f; /* atomic teal */
+    --teal-100: #ddeeef;
+    --mustard-500: #c99a2c; /* diner mustard */
+    --mustard-100: #f7ecd2;
+    --plum-900: #3b1f2b; /* brand plum (from original palette) */
+    --plum-300: #ab7e92;
+
+    /* --- Ink --- */
+    --ink-900: #262626;
+    --ink-700: rgba(38, 38, 38, 0.8);
+    --ink-500: rgba(38, 38, 38, 0.62);
+    --ink-300: rgba(38, 38, 38, 0.4);
+
+    /* --- Semantic: status --- */
+    --status-success: #116a50;
+    --status-success-bg: #e7f1e9;
+    --status-progress: #37878f;
+    --status-progress-bg: #ddeeef;
+    --status-warning: #9a5b14;
+    --status-warning-bg: #faedd3;
+    --status-danger: #9f2d20;
+    --status-danger-bg: #f9e3df;
+    --status-neutral: #8c7a6b;
+    --status-neutral-bg: #f6e9d4;
+
+    /* --- Semantic aliases --- */
+    --brand: var(--green-900);
+    --brand-hover: var(--green-800);
+    --brand-deep: var(--green-950);
+    --surface-page: var(--cream-50);
+    --surface-card: #ffffff;
+    --surface-sunken: var(--cream-100);
+    --surface-tint: var(--green-100);
+    --surface-inverse: var(--green-950);
+    --text-body: var(--ink-900);
+    --text-secondary: var(--ink-700);
+    --text-muted: var(--ink-500);
+    --text-brand: var(--green-900);
+    --text-on-dark: var(--cream-50);
+    --text-on-dark-soft: rgba(255, 251, 245, 0.78);
+    --border-soft: rgba(38, 38, 38, 0.1);
+    --border-strong: rgba(38, 38, 38, 0.18);
+    --border-on-dark: rgba(255, 251, 245, 0.16);
+    --link: var(--green-700);
+    --link-hover: var(--green-900);
+}

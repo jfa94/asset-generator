@@ -1,0 +1,43 @@
+/* ============================================================
+   GoodbyeSpy — Typography tokens
+   Mid-century print pairing: Besley (Clarendon slab) display,
+   Familjen Grotesk for UI & body, Yellowtail script for
+   single accent words, Arima strictly for the wordmark.
+   ============================================================ */
+:root {
+    --font-display: 'Besley', Georgia, serif;
+    --font-body: 'Familjen Grotesk', system-ui, sans-serif;
+    --font-script: 'Yellowtail', cursive;
+    --font-logo: 'Arima', 'Besley', serif;
+    --font-mono: 'SF Mono', 'Menlo', ui-monospace, monospace;
+
+    /* Scale */
+    --text-hero: 4.5rem; /* 72px — landing hero only */
+    --text-display: 3.25rem; /* 52px */
+    --text-h2: 2.375rem; /* 38px */
+    --text-h3: 1.625rem; /* 26px */
+    --text-h4: 1.25rem; /* 20px */
+    --text-lead: 1.25rem; /* 20px — intro paragraphs */
+    --text-base: 1rem; /* 16px */
+    --text-sm: 0.9375rem; /* 15px */
+    --text-caption: 0.75rem; /* 12px — uppercase labels */
+
+    /* Leading */
+    --leading-display: 1.02;
+    --leading-heading: 1.12;
+    --leading-body: 1.6;
+    --leading-tight: 1.35;
+
+    /* Tracking */
+    --tracking-display: -0.025em;
+    --tracking-body: -0.002em;
+    --tracking-caps: 0.08em; /* uppercase eyebrows & labels */
+
+    /* Weights */
+    --weight-display: 700; /* Besley bold — headline weight (800 was too heavy) */
+    --weight-display-medium: 600;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+    --weight-bold: 700;
+}

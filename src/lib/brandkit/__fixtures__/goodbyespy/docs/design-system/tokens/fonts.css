@@ -1,0 +1,9 @@
+/* GoodbyeSpy webfonts.
+   No font binaries were provided with the brand sources, so fonts load from
+   Google Fonts. Families:
+   - Besley     — Clarendon-style slab; display headlines (the 50s ad voice)
+   - Familjen Grotesk — warm compact grotesque; UI & body
+   - Yellowtail — 50s brush script; single accent words only
+   - Arima      — wordmark only
+   If self-hosted files are supplied later, replace with @font-face rules. */
+@import url('https://fonts.googleapis.com/css2?family=Besley:ital,wght@0,400..900;1,400..900&family=Familjen+Grotesk:ital,wght@0,400..700;1,400..700&family=Yellowtail&family=Arima:wght@400;500;600;700&display=swap');

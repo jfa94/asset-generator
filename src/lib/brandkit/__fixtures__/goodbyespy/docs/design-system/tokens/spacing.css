@@ -1,0 +1,31 @@
+/* ============================================================
+   GoodbyeSpy — Spacing & layout tokens (4px base grid)
+   ============================================================ */
+:root {
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+    --space-20: 80px;
+    --space-24: 96px;
+
+    /* Layout */
+    --container-max: 1152px; /* marketing sections */
+    --container-narrow: 880px; /* prose, FAQs */
+    --section-pad-y: 96px;
+    --gutter: 24px;
+
+    /* Component paddings */
+    --pad-card: 32px;
+    --pad-card-compact: 20px;
+    --pad-btn-y: 10px;
+    --pad-btn-x: 22px;
+    --pad-input-y: 11px;
+    --pad-input-x: 14px;
+}
