@@ -43,7 +43,22 @@ export const approveBriefAction = async (id: string, formData: FormData): Promis
     revalidatePath(`/runs/${id}`)
 }
 
-/** reviewing → regenerating (any redo) | finalizing (all approved). Copy edits are persisted either way. */
+// ponytail: structural bounds on the client-supplied payload (this is a trust boundary — the
+// Campaign[] type is not enforced at runtime). Caps total campaigns and serialized size so the
+// O(n²) copy validators and the disk write can't be driven unbounded. Raise if real campaigns exceed.
+const MAX_CAMPAIGNS = 24
+const MAX_PAYLOAD_BYTES = 512 * 1024
+
+const withinBounds = (campaigns: Campaign[]): boolean =>
+    Array.isArray(campaigns) &&
+    campaigns.length <= MAX_CAMPAIGNS &&
+    JSON.stringify(campaigns).length <= MAX_PAYLOAD_BYTES
+
+/**
+ * reviewing → regenerating (any redo) | finalizing (all approved). Copy edits are persisted either way.
+ * Copy limits are enforced only on the finalizing path — the redo path exists to repair bad copy, so
+ * blocking it on those same limits would deadlock a run whose flagged assets have invalid copy.
+ */
 export const submitReviewsAction = async (
     id: string,
     campaigns: Campaign[]
@@ -52,18 +67,23 @@ export const submitReviewsAction = async (
     if (run?.status !== 'reviewing') {
         return [null, 'Run is not in reviewing state.']
     }
+    if (!withinBounds(campaigns)) {
+        return [null, 'Submission is too large.']
+    }
     if (hasPending(campaigns)) {
         return [null, 'Every asset needs a decision (approve or redo).']
     }
-    const copyIssues = campaigns.flatMap((c) => [
-        ...validateRsa(c.copy.rsa).map((i) => `${c.slug} rsa.${i.field}: ${i.message}`),
-        ...validatePmax(c.copy.pmax).map((i) => `${c.slug} pmax.${i.field}: ${i.message}`),
-        ...validateMeta(c.copy.meta).map((i) => `${c.slug} meta.${i.field}: ${i.message}`),
-    ])
-    if (copyIssues.length > 0) {
-        return [null, copyIssues.join('\n')]
-    }
     const status = allApproved(campaigns) ? 'finalizing' : 'regenerating'
+    if (status === 'finalizing') {
+        const copyIssues = campaigns.flatMap((c) => [
+            ...validateRsa(c.copy.rsa).map((i) => `${c.slug} rsa.${i.field}: ${i.message}`),
+            ...validatePmax(c.copy.pmax).map((i) => `${c.slug} pmax.${i.field}: ${i.message}`),
+            ...validateMeta(c.copy.meta).map((i) => `${c.slug} meta.${i.field}: ${i.message}`),
+        ])
+        if (copyIssues.length > 0) {
+            return [null, copyIssues.join('\n')]
+        }
+    }
     await writeRun(RUNS_DIR, {...run, campaigns, status})
     revalidatePath(`/runs/${id}`)
     return [status, null]
