@@ -33,7 +33,7 @@ The UI runs at `http://localhost:3000`. Leave it running.
 Open `http://localhost:3000`. In the form, enter:
 
 - **Target repo path** — the absolute path to your product repository
-- **Campaigns** — how many distinct campaigns to produce (default 3)
+- **Campaigns** — how many distinct campaigns to produce, 1–10 (default 3)
 
 Click **New run**. You are redirected to the run page at
 `http://localhost:3000/runs/<run-id>`. The run now exists on disk at

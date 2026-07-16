@@ -25,8 +25,9 @@ In your Claude Code session:
 
 Provide the two inputs when prompted:
 
-- `repoPath` — absolute path to the target product repo
-- `campaignCount` — number of campaigns (default 3)
+- `repoPath` — absolute path to the target product repo (must be absolute, ≤ 500
+  chars)
+- `campaignCount` — number of campaigns (default 3; server-side range 1–10)
 
 You can instead create the run in the UI first (status `briefing`, matching
 `repoPath`); the agent will adopt it.

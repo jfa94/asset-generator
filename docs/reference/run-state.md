@@ -7,17 +7,17 @@ the agent.
 
 ## `RunState`
 
-| Field           | Type         | Presence                 | Description                                |
-| --------------- | ------------ | ------------------------ | ------------------------------------------ |
-| `id`            | string       | always                   | Run id, `run-<base36 timestamp>`.          |
-| `createdAt`     | string       | always                   | ISO-8601 creation timestamp.               |
-| `repoPath`      | string       | always                   | Absolute path to the target product repo.  |
-| `campaignCount` | number       | always                   | Number of campaigns to produce (≥ 1).      |
-| `status`        | `RunStatus`  | always                   | Current lifecycle status (see below).      |
-| `brief`         | `Brief`      | from `awaiting-approval` | The "what are we advertising" summary.     |
-| `themes`        | `Theme[]`    | from `awaiting-approval` | One theme per campaign.                    |
-| `campaigns`     | `Campaign[]` | from `reviewing`         | Generated copy and image assets.           |
-| `outputDir`     | string       | on `complete`            | Final Downloads path written by the agent. |
+| Field           | Type         | Presence                 | Description                                                                  |
+| --------------- | ------------ | ------------------------ | ---------------------------------------------------------------------------- |
+| `id`            | string       | always                   | Run id, `run-<base36 timestamp>`.                                            |
+| `createdAt`     | string       | always                   | ISO-8601 creation timestamp.                                                 |
+| `repoPath`      | string       | always                   | Absolute path to the target product repo (≤ 500 chars, validated on create). |
+| `campaignCount` | number       | always                   | Number of campaigns to produce; integer 1–10, validated on create.           |
+| `status`        | `RunStatus`  | always                   | Current lifecycle status (see below).                                        |
+| `brief`         | `Brief`      | from `awaiting-approval` | The "what are we advertising" summary.                                       |
+| `themes`        | `Theme[]`    | from `awaiting-approval` | One theme per campaign.                                                      |
+| `campaigns`     | `Campaign[]` | from `reviewing`         | Generated copy and image assets.                                             |
+| `outputDir`     | string       | on `complete`            | Final Downloads path written by the agent.                                   |
 
 ## `RunStatus`
 
@@ -85,13 +85,13 @@ One per campaign.
 
 ### `ImageAsset`
 
-| Field      | Type                    | Description                           |
-| ---------- | ----------------------- | ------------------------------------- |
-| `file`     | string                  | Path relative to the run directory.   |
-| `platform` | `google-pmax` \| `meta` | Target platform.                      |
-| `format`   | string                  | Format name (e.g. `square`, `story`). |
-| `variant`  | number                  | Variant index (1–3).                  |
-| `review`   | `Review`                | Review state.                         |
+| Field      | Type                    | Description                                                                                                                          |
+| ---------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `file`     | string                  | Path relative to the run directory.                                                                                                  |
+| `platform` | `google-pmax` \| `meta` | Target platform.                                                                                                                     |
+| `format`   | `AdFormatName`          | Format name: `landscape` \| `square` \| `portrait` \| `feed` \| `story`. Shared with `AdFormat.name`; defined in `src/types/run.ts`. |
+| `variant`  | number                  | Variant index (1–3).                                                                                                                 |
+| `review`   | `Review`                | Review state.                                                                                                                        |
 
 ### `Review`
 
@@ -108,6 +108,8 @@ Defined in `src/domain/run.ts`, used to decide the `reviewing` exit:
   `approved`; the UI routes to `finalizing`.
 - `hasPending(campaigns)` — true when any review is still `pending`; the UI blocks
   submission until every asset has a decision.
+- `hasNotelessRedo(campaigns)` — true when any review is `redo` with an empty note;
+  the UI blocks submission until every redo carries a note for the agent.
 
 ## On-disk layout of a run
 

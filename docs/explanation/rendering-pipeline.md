@@ -45,7 +45,9 @@ uses each for its strength.
 
 `verifyPng` is the safety gate every image passes before it is written:
 
-1. If the PNG is over `MAX_IMAGE_BYTES` (5 MB), re-compress it.
+1. If the PNG is over `MAX_IMAGE_BYTES` (5 MB), re-compress it (palette PNG, max
+   compression). If it is _still_ over the cap after compression, **throw** — the
+   image is never written or silently shipped oversized.
 2. Read the final width and height. If they do not exactly match the requested
    dimensions, **throw**.
 
@@ -73,3 +75,26 @@ embedding them. The CLI (`loadJobs`) inlines those references into the
 before rendering. This keeps `jobs.json` small and readable (the agent composes it
 from brand-kit paths) while the renderer still receives a fully self-contained
 spec, so the screenshot has no external network dependencies to wait on.
+
+## The SSRF guard on the render browser
+
+The brand's `cssText` is repo-controlled input, and its `@import` rules fetch
+through Puppeteer at render time — a font CDN is the designed feature. That same
+fetch capability is a server-side request forgery (SSRF) surface: a malicious or
+mistaken stylesheet could point the headless browser at internal infrastructure.
+
+To contain this, `renderOne` enables request interception and screens every
+request URL through the exported `isBlockedRequestUrl`:
+
+- **Allowed**: `data:` URIs (inlined logos and assets) and public `http(s)` hosts
+  (the font CDNs the feature relies on).
+- **Blocked**: any other scheme; `localhost`, `*.localhost`, and `*.internal`
+  hosts; IPv6 literals; and private, loopback, and link-local IPv4 ranges
+  (`0.*`, `10.*`, `127.*`, `169.254.*`, `172.16–31.*`, `192.168.*`). The WHATWG
+  `URL` parser canonicalizes percent-encoded and alternate IPv4 forms to a dotted
+  quad before the check, so obfuscated addresses do not slip through.
+
+This is hostname-level defense, not full containment: DNS rebinding is out of
+scope because Chrome DevTools Protocol exposes no pre-connect resolved-IP hook.
+Real network isolation is a deployment concern — egress control on the environment
+that runs the renderer.

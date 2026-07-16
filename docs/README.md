@@ -1,4 +1,4 @@
-<!-- last-documented: uncommitted (no git history yet) -->
+<!-- last-documented: 93d97f1ca9454afa7f475581d725c27fe6c10653 -->
 
 # Asset Generator
 

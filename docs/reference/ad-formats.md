@@ -38,10 +38,10 @@ under platform UI. Only the 9:16 Meta `story` format declares one.
 
 ## Constants
 
-| Constant          | Value           | Meaning                                                                                      |
-| ----------------- | --------------- | -------------------------------------------------------------------------------------------- |
-| `LOGO_SIZE`       | 1200            | Side length of the square logo asset PMax requires.                                          |
-| `MAX_IMAGE_BYTES` | 5 × 1024 × 1024 | Byte cap for Google responsive formats (5 MB). Renders over this are re-compressed by Sharp. |
+| Constant          | Value           | Meaning                                                                                                                                                  |
+| ----------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LOGO_SIZE`       | 1200            | Side length of the square logo asset PMax requires.                                                                                                      |
+| `MAX_IMAGE_BYTES` | 5 × 1024 × 1024 | Byte cap for Google responsive formats (5 MB). Renders over this are re-compressed by Sharp; if still over the cap after compression, the render throws. |
 
 See [Reference: render jobs](render-jobs.md) for how these feed the renderer and
 [Explanation: rendering pipeline](../explanation/rendering-pipeline.md) for how

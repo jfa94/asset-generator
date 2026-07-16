@@ -27,17 +27,26 @@ For each asset choose one:
 Every asset must have a decision. If any are left pending, submission is rejected
 with "Every asset needs a decision (approve or redo)."
 
+Every redo must carry a note — a note gives the regenerating agent something to
+act on. If any redo has an empty note, submission is rejected with "Every redo
+needs a note for the agent."
+
 ## 2. Edit copy inline (optional)
 
 You can edit copy text directly in the gallery. Each list field is a textarea,
 one entry per line; the PMax business name is a single input. Your edits are
 persisted when you submit.
 
-Edited copy is re-validated on submit. If any field breaks a platform limit, the
-submission is rejected and the specific issues are listed (for example,
-`01-no-subscription rsa.headlines[3]: exceeds 30 chars`). Fix the flagged fields
-and resubmit. See [Reference: copy limits](../reference/copy-limits.md) for the
-rules.
+Edited copy is re-validated only on the **finalize** path — when every asset is
+approved. If any field breaks a platform limit, the submission is rejected and the
+specific issues are listed (for example, `01-no-subscription rsa.headlines[3]:
+exceeds 30 chars`). Fix the flagged fields and resubmit. See
+[Reference: copy limits](../reference/copy-limits.md) for the rules.
+
+The redo path deliberately skips this check: redos exist to repair bad copy, so
+blocking them on the same limits would deadlock a run whose flagged assets carry
+invalid copy. Your edits are still persisted, and the copy is re-validated the next
+time you try to finalize.
 
 ## 3. Submit
 
@@ -64,6 +73,9 @@ every asset is approved and you finalize.
 
 ## Notes
 
+- A submission is bounded as a trust boundary: at most 24 campaigns and a 512 KB
+  serialized payload. Oversized submissions are rejected with "Submission is too
+  large." (a normal run stays well under both.)
 - Approved assets are never re-rendered, so approving early saves the agent work.
 - Because state lives in `run.json`, you can close the browser and come back; the
   gallery reflects the current on-disk state.
