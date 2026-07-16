@@ -21,8 +21,8 @@ export default defineConfig({
                 'src/**/types/**',
                 'src/**/index.ts',
                 'src/**/__mocks__/**',
-                // Cockpit UI shell: thin glue over tested lib/domain, exercised by the E2E dry run
-                'src/app/**',
+                // React UI shell only: thin presentation over tested lib/domain; server .ts (actions, routes) stays covered
+                'src/app/**/*.tsx',
             ],
             thresholds: {
                 lines: 80,

@@ -8,7 +8,7 @@ vi.mock('@/lib/state/store', () => ({
     writeRun: vi.fn(),
 }))
 
-import {submitReviewsAction} from '@/app/runs/[id]/actions'
+import {approveBriefAction, submitReviewsAction} from '@/app/runs/[id]/actions'
 import {readRun, writeRun} from '@/lib/state/store'
 
 const mockReadRun = vi.mocked(readRun)
@@ -66,6 +66,85 @@ const campaign = (copy: CampaignCopy, copyStatus: ReviewStatus, imageStatus: Rev
 })
 
 const reviewingRun = {id: 'r1', status: 'reviewing'} as RunState
+
+describe('approveBriefAction', () => {
+    const briefForm = (): FormData => {
+        const fd = new FormData()
+        fd.set('product', ' Widget ')
+        fd.set('audience', 'devs')
+        fd.set('valueProps', 'fast\n\n cheap ')
+        fd.set('offer', 'trial')
+        fd.set('landingUrl', 'https://x.com')
+        fd.set('voice', 'dry')
+        fd.set('theme.0.name', 'Price honesty')
+        fd.set('theme.0.angle', 'offer-led')
+        fd.set('theme.0.tone', 'deadpan')
+        fd.set('theme.0.sampleHeadline', 'H')
+        fd.set('theme.0.visualDirection', 'stamp')
+        return fd
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    it('no-ops when the run does not exist', async () => {
+        mockReadRun.mockResolvedValue(null)
+        await approveBriefAction('r1', briefForm())
+        expect(mockWriteRun).not.toHaveBeenCalled()
+    })
+
+    it('no-ops when the run cannot transition to generating', async () => {
+        mockReadRun.mockResolvedValue({id: 'r1', status: 'generating'} as RunState)
+        await approveBriefAction('r1', briefForm())
+        expect(mockWriteRun).not.toHaveBeenCalled()
+    })
+
+    it('persists the trimmed brief and indexed theme edits, then hands off', async () => {
+        mockReadRun.mockResolvedValue({
+            id: 'r1',
+            status: 'awaiting-approval',
+            themes: [{slug: 't0', name: 'old', angle: '', tone: '', sampleHeadline: '', visualDirection: ''}],
+        } as RunState)
+        await approveBriefAction('r1', briefForm())
+        expect(mockWriteRun).toHaveBeenCalledWith(
+            '/runs',
+            expect.objectContaining({
+                status: 'generating',
+                brief: {
+                    product: 'Widget',
+                    audience: 'devs',
+                    valueProps: ['fast', 'cheap'],
+                    offer: 'trial',
+                    landingUrl: 'https://x.com',
+                    voice: 'dry',
+                },
+                themes: [
+                    {
+                        slug: 't0',
+                        name: 'Price honesty',
+                        angle: 'offer-led',
+                        tone: 'deadpan',
+                        sampleHeadline: 'H',
+                        visualDirection: 'stamp',
+                    },
+                ],
+            })
+        )
+    })
+
+    it('defaults missing form fields to empty strings and missing themes to []', async () => {
+        mockReadRun.mockResolvedValue({id: 'r1', status: 'awaiting-approval'} as RunState)
+        await approveBriefAction('r1', new FormData())
+        expect(mockWriteRun).toHaveBeenCalledWith(
+            '/runs',
+            expect.objectContaining({
+                brief: {product: '', audience: '', valueProps: [], offer: '', landingUrl: '', voice: ''},
+                themes: [],
+            })
+        )
+    })
+})
 
 describe('submitReviewsAction', () => {
     beforeEach(() => {
