@@ -26,7 +26,10 @@
 .claude/CLAUDE.local.md
 .claude/tool-audit.jsonl
 .claude-plugin-data/
-.code-review/
+# run artifacts stay ignored; the dispositions ledger is committed
+# (dir itself can't be excluded or the negation below is dead — hence /*)
+.code-review/*
+!.code-review/dispositions.json
 .code-reviews/
 .comprehensive-code-review/
 .focused-code-review/
