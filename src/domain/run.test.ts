@@ -18,7 +18,7 @@ const campaign = (copyStatus: ReviewStatus, imageStatus: ReviewStatus, imageNote
         {
             file: 'assets/v1.png',
             platform: 'meta',
-            format: '1080x1080',
+            format: 'square',
             variant: 1,
             review: {status: imageStatus, note: imageNote},
         },

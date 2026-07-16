@@ -5,13 +5,14 @@ import sharp from 'sharp'
 import {afterAll, describe, expect, it, vi} from 'vitest'
 import type {TemplateSpec} from '@/lib/templates/types'
 import {loadJobs, main, toDataUri} from '@/services/render/cli'
-import {renderJobs, verifyPng} from '@/services/render/render'
+import {isBlockedRequestUrl, renderJobs, verifyPng} from '@/services/render/render'
 
 const dir = mkdtempSync(join(tmpdir(), 'render-'))
 afterAll(() => {
     rmSync(dir, {recursive: true, force: true})
 })
 
+// Kitchen-sink copy (badge/stat included) satisfies every template variant of the union.
 const spec = (overrides: Partial<TemplateSpec>): TemplateSpec => ({
     template: 'poster-type',
     width: 1200,
@@ -26,7 +27,7 @@ const spec = (overrides: Partial<TemplateSpec>): TemplateSpec => ({
     fonts: {display: 'Georgia', body: 'Helvetica'},
     cssText: '',
     logoDataUri: null,
-    copy: {headline: 'Render smoke test', cta: 'Go'},
+    copy: {headline: 'Render smoke test', cta: 'Go', badge: '50% off', stat: '4.8'},
     ...overrides,
 })
 
@@ -127,6 +128,44 @@ describe('verifyPng', () => {
         await expect(verifyPng(big, 3000, 3000, 'huge.png')).rejects.toThrow(
             /exceeds cap \d+ after compression \(huge\.png\)/
         )
+    })
+})
+
+describe('isBlockedRequestUrl', () => {
+    it.each([
+        'http://localhost/x',
+        'http://localhost./x',
+        'http://sub.localhost/x',
+        'http://metadata.internal/x',
+        'http://127.0.0.1/x',
+        'http://127.1.2.3/x',
+        'http://10.0.0.1/x',
+        'http://169.254.169.254/latest/meta-data/',
+        'http://172.16.0.1/x',
+        'http://172.31.255.255/x',
+        'http://192.168.1.1/x',
+        'http://0.0.0.0/x',
+        'http://2130706433/', // decimal-encoded 127.0.0.1 — URL canonicalizes to dotted-quad
+        'http://0x7f000001/',
+        'http://[::1]/x',
+        'http://[fd00::1]/x',
+        'file:///etc/passwd',
+        'ftp://example.com/x',
+        'not a url',
+    ])('blocks %s', (u) => {
+        expect(isBlockedRequestUrl(u)).toBe(true)
+    })
+
+    it.each([
+        'https://fonts.googleapis.com/css2?family=Besley',
+        'https://fonts.gstatic.com/s/besley/v14/x.woff2',
+        'http://example.com/style.css',
+        'data:font/woff2;base64,AAAA',
+        'http://172.32.0.1/x', // just outside 172.16/12
+        'http://172.15.255.255/x',
+        'http://11.0.0.1/x',
+    ])('allows %s', (u) => {
+        expect(isBlockedRequestUrl(u)).toBe(false)
     })
 })
 

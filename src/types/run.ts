@@ -25,6 +25,9 @@ export interface Theme {
     visualDirection: string
 }
 
+// Defined here (not domain/formats.ts) because types is an import leaf; domain re-uses it.
+export type AdFormatName = 'landscape' | 'square' | 'portrait' | 'feed' | 'story'
+
 export type ReviewStatus = 'pending' | 'approved' | 'redo'
 
 export interface Review {
@@ -36,7 +39,7 @@ export interface ImageAsset {
     /** Path relative to the run directory. */
     file: string
     platform: 'google-pmax' | 'meta'
-    format: string
+    format: AdFormatName
     variant: number
     review: Review
 }

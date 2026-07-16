@@ -1,5 +1,7 @@
 // Platform image specs from the static-asset playbook / creative best-practices reports.
 
+import type {AdFormatName} from '@/types/run'
+
 export type Platform = 'google-pmax' | 'meta'
 
 export interface SafeZone {
@@ -11,7 +13,7 @@ export interface SafeZone {
 
 export interface AdFormat {
     platform: Platform
-    name: string
+    name: AdFormatName
     width: number
     height: number
     safeZone?: SafeZone

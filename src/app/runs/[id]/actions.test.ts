@@ -58,7 +58,7 @@ const campaign = (copy: CampaignCopy, copyStatus: ReviewStatus, imageStatus: Rev
         {
             file: 'assets/v1.png',
             platform: 'meta',
-            format: '1080x1080',
+            format: 'square',
             variant: 1,
             review: review(imageStatus),
         },

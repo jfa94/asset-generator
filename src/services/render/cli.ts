@@ -5,13 +5,15 @@
 import {readFileSync} from 'node:fs'
 import {extname} from 'node:path'
 import {renderJobs, type RenderJob} from '@/services/render/render'
-import type {TemplateSpec} from '@/lib/templates/types'
+import type {TemplateContent, TemplateSpecBase} from '@/lib/templates/types'
 
-export interface RenderJobFile extends Omit<TemplateSpec, 'cssText' | 'logoDataUri'> {
-    cssPaths: string[]
-    logoPath: string | null
-    outPath: string
-}
+// Omit the plain base only — Omit over the full union would collapse the discriminant.
+export type RenderJobFile = Omit<TemplateSpecBase, 'cssText' | 'logoDataUri'> &
+    TemplateContent & {
+        cssPaths: string[]
+        logoPath: string | null
+        outPath: string
+    }
 
 const MIME: Record<string, string> = {
     '.png': 'image/png',

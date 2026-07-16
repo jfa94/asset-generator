@@ -18,6 +18,54 @@ export interface RenderResult {
     bytes: number
 }
 
+const isPrivateIpv4 = (host: string): boolean => {
+    const m = /^(\d+)\.(\d+)\.\d+\.\d+$/.exec(host)
+    if (m === null) {
+        return false
+    }
+    const a = Number(m[1])
+    const b = Number(m[2])
+    return (
+        a === 0 ||
+        a === 10 ||
+        a === 127 ||
+        (a === 169 && b === 254) ||
+        (a === 172 && b >= 16 && b <= 31) ||
+        (a === 192 && b === 168)
+    )
+}
+
+/**
+ * Hostname-level SSRF guard for the render browser: brand cssText is repo-controlled input and
+ * its @imports fetch through Puppeteer. Allows data: and public http(s) hosts (font CDNs are the
+ * designed feature); blocks other schemes, localhost/*.internal, IPv6 literals, and private/
+ * loopback/link-local IPv4 (WHATWG URL canonicalizes encoded forms to dotted-quad first).
+ * DNS rebinding is out of scope — CDP has no pre-connect resolved-IP hook; real containment
+ * is deployment-level egress control.
+ */
+export const isBlockedRequestUrl = (rawUrl: string): boolean => {
+    let url: URL
+    try {
+        url = new URL(rawUrl)
+    } catch {
+        return true
+    }
+    if (url.protocol === 'data:') {
+        return false
+    }
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        return true
+    }
+    const host = url.hostname.replace(/\.$/, '')
+    if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.internal')) {
+        return true
+    }
+    if (host.startsWith('[')) {
+        return true
+    }
+    return isPrivateIpv4(host)
+}
+
 /** Compress if over the ad-platform byte cap, then verify the cap held and dimensions are pixel-exact. */
 export const verifyPng = async (png: Buffer, width: number, height: number, label: string): Promise<Buffer> => {
     let out = png
@@ -43,6 +91,10 @@ const renderOne = async (browser: Browser, job: RenderJob): Promise<RenderResult
     const page = await browser.newPage()
     try {
         await page.setViewport({width: spec.width, height: spec.height})
+        await page.setRequestInterception(true)
+        page.on('request', (req) => {
+            void (isBlockedRequestUrl(req.url()) ? req.abort('blockedbyclient') : req.continue())
+        })
         await page.setContent(buildHtml(spec), {waitUntil: 'load'})
         await page.waitForNetworkIdle()
         await page.evaluate('document.fonts.ready')

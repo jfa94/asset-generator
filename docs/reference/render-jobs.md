@@ -67,8 +67,8 @@ Exported as `TEMPLATE_IDS`.
 | `cta`         | string | optional | renders a CTA pill |
 | `proof`       | string | optional | `proof-card`       |
 | `attribution` | string | optional | `proof-card`       |
-| `badge`       | string | optional | `offer-stamp`      |
-| `stat`        | string | optional | `stat-callout`     |
+| `badge`       | string | required for `offer-stamp` | `offer-stamp`      |
+| `stat`        | string | required for `stat-callout` | `stat-callout`     |
 | `statLabel`   | string | optional | `stat-callout`     |
 
 ## CLI behavior
