@@ -18,11 +18,16 @@ export interface RenderResult {
     bytes: number
 }
 
-/** Compress if over the ad-platform byte cap, then verify pixel-exact dimensions. */
+/** Compress if over the ad-platform byte cap, then verify the cap held and dimensions are pixel-exact. */
 export const verifyPng = async (png: Buffer, width: number, height: number, label: string): Promise<Buffer> => {
     let out = png
     if (out.byteLength > MAX_IMAGE_BYTES) {
         out = await sharp(out).png({compressionLevel: 9, palette: true}).toBuffer()
+        if (out.byteLength > MAX_IMAGE_BYTES) {
+            throw new Error(
+                `Rendered ${String(out.byteLength)} bytes, exceeds cap ${String(MAX_IMAGE_BYTES)} after compression (${label})`
+            )
+        }
     }
     const meta = await sharp(out).metadata()
     if (meta.width !== width || meta.height !== height) {

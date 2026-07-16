@@ -1,7 +1,7 @@
 import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {basename, join, sep} from 'node:path'
-import {afterAll, describe, expect, it} from 'vitest'
+import {afterAll, describe, expect, it, vi} from 'vitest'
 import {listRuns, readAsset, readRun, RUNS_DIR, writeRun} from '@/lib/state/store'
 import type {RunState} from '@/types/run'
 
@@ -62,6 +62,24 @@ describe('run store', () => {
             expect(await readAsset(dir, escId, 'assets/a.png')).toBeNull()
         } finally {
             rmSync(sibling, {recursive: true, force: true})
+        }
+    })
+
+    it('warns on corrupt run.json but stays null; missing files stay silent', async () => {
+        const warned = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+        try {
+            mkdirSync(join(dir, 'run-corrupt'))
+            writeFileSync(join(dir, 'run-corrupt', 'run.json'), '{not json')
+            expect(await readRun(dir, 'run-corrupt')).toBeNull()
+            expect(warned).toHaveBeenCalledOnce()
+            expect(warned.mock.calls[0]?.[0]).toContain('readRun run-corrupt')
+            warned.mockClear()
+            expect(await readRun(dir, 'no-such-run')).toBeNull()
+            expect(await readAsset(dir, 'run-a', 'assets/missing2.png')).toBeNull()
+            expect(warned).not.toHaveBeenCalled()
+        } finally {
+            rmSync(join(dir, 'run-corrupt'), {recursive: true, force: true})
+            warned.mockRestore()
         }
     })
 

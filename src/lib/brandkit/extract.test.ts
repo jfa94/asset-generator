@@ -79,6 +79,23 @@ describe('extractBrandKit css fallback', () => {
     it('has no voice (agent infers later)', () => {
         expect(kit.voice).toBeNull()
     })
+
+    it('keeps the final declaration when the trailing semicolon is missing', () => {
+        const repo = mkdtempSync(join(tmpdir(), 'bk-css-'))
+        try {
+            mkdirSync(join(repo, 'app'), {recursive: true})
+            writeFileSync(
+                join(repo, 'app', 'globals.css'),
+                '@theme {\n  --color-first: #fff;\n  --color-brand: #064e3b\n}\n'
+            )
+            expect(extractBrandKit(repo).tokens).toEqual([
+                {name: '--color-first', value: '#fff', kind: 'color'},
+                {name: '--color-brand', value: '#064e3b', kind: 'color'},
+            ])
+        } finally {
+            rmSync(repo, {recursive: true, force: true})
+        }
+    })
 })
 
 describe('extractBrandKit errors', () => {

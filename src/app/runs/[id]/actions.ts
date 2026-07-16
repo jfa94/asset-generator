@@ -1,7 +1,7 @@
 'use server'
 
 import {revalidatePath} from 'next/cache'
-import {allApproved, canTransition, hasPending} from '@/domain/run'
+import {allApproved, canTransition, hasNotelessRedo, hasPending} from '@/domain/run'
 import {validateMeta, validatePmax, validateRsa} from '@/domain/validation/copy'
 import {readRun, RUNS_DIR, writeRun} from '@/lib/state/store'
 import type {Brief, Campaign, Theme} from '@/types/run'
@@ -72,6 +72,9 @@ export const submitReviewsAction = async (
     }
     if (hasPending(campaigns)) {
         return [null, 'Every asset needs a decision (approve or redo).']
+    }
+    if (hasNotelessRedo(campaigns)) {
+        return [null, 'Every redo needs a note for the agent.']
     }
     const status = allApproved(campaigns) ? 'finalizing' : 'regenerating'
     if (status === 'finalizing') {

@@ -40,13 +40,19 @@ const invalidCopy = (): CampaignCopy => ({
     meta: {primaryTexts: [], headlines: [], descriptions: []},
 })
 
+// Redos carry a note by default — the action rejects noteless redos.
+const review = (status: ReviewStatus): {status: ReviewStatus; note: string} => ({
+    status,
+    note: status === 'redo' ? 'fix this' : '',
+})
+
 const campaign = (copy: CampaignCopy, copyStatus: ReviewStatus, imageStatus: ReviewStatus): Campaign => ({
     slug: 'c',
     copy,
     copyReviews: {
-        rsa: {status: copyStatus, note: ''},
-        pmax: {status: copyStatus, note: ''},
-        meta: {status: copyStatus, note: ''},
+        rsa: review(copyStatus),
+        pmax: review(copyStatus),
+        meta: review(copyStatus),
     },
     images: [
         {
@@ -54,7 +60,7 @@ const campaign = (copy: CampaignCopy, copyStatus: ReviewStatus, imageStatus: Rev
             platform: 'meta',
             format: '1080x1080',
             variant: 1,
-            review: {status: imageStatus, note: ''},
+            review: review(imageStatus),
         },
     ],
 })
@@ -87,6 +93,15 @@ describe('submitReviewsAction', () => {
         const [status, err] = await submitReviewsAction('r1', [campaign(validCopy(), 'pending', 'approved')])
         expect(status).toBeNull()
         expect(err).toBe('Every asset needs a decision (approve or redo).')
+        expect(mockWriteRun).not.toHaveBeenCalled()
+    })
+
+    it('rejects a redo without a note', async () => {
+        const c = campaign(validCopy(), 'approved', 'redo')
+        c.images = c.images.map((i) => ({...i, review: {status: 'redo', note: ''}}))
+        const [status, err] = await submitReviewsAction('r1', [c])
+        expect(status).toBeNull()
+        expect(err).toBe('Every redo needs a note for the agent.')
         expect(mockWriteRun).not.toHaveBeenCalled()
     })
 

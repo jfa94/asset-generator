@@ -37,7 +37,7 @@ const kindFor = (name: string): TokenKind => {
     return 'other'
 }
 
-/** Pull every `--name: value;` declaration out of @theme blocks (Tailwind v4). */
+/** Pull every `--name: value` declaration out of @theme blocks (Tailwind v4). */
 const themeDeclarations = (css: string): [string, string][] => {
     const declarations: [string, string][] = []
     for (const block of css.matchAll(/@theme[^{]*\{/g)) {
@@ -55,9 +55,11 @@ const themeDeclarations = (css: string): [string, string][] => {
             i++
         }
         const body = css.slice(start, i - 1)
-        for (const [, name, value] of body.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
-            if (name !== undefined && value !== undefined) {
-                declarations.push([name, value.trim()])
+        // split on ';' so the final declaration is kept even without a trailing semicolon
+        for (const chunk of body.split(';')) {
+            const match = /(--[\w-]+)\s*:\s*(\S[\s\S]*)/.exec(chunk)
+            if (match?.[1] !== undefined && match[2] !== undefined) {
+                declarations.push([match[1], match[2].trim()])
             }
         }
     }

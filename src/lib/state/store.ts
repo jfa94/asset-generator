@@ -6,13 +6,21 @@ export const RUNS_DIR = join(process.cwd(), 'runs')
 
 const validId = (id: string): boolean => /^[\w-]+$/.test(id)
 
+/** Missing files are expected (404/empty semantics); anything else deserves telemetry. */
+const warnUnlessMissing = (ctx: string, err: unknown): void => {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        console.warn(`${ctx}: ${String(err)}`)
+    }
+}
+
 export const readRun = async (dir: string, id: string): Promise<RunState | null> => {
     if (!validId(id)) {
         return null
     }
     try {
         return JSON.parse(await readFile(join(dir, id, 'run.json'), 'utf8')) as RunState
-    } catch {
+    } catch (err) {
+        warnUnlessMissing(`readRun ${id}`, err)
         return null
     }
 }
@@ -30,7 +38,8 @@ export const listRuns = async (dir: string): Promise<RunState[]> => {
     let entries
     try {
         entries = await readdir(dir, {withFileTypes: true})
-    } catch {
+    } catch (err) {
+        warnUnlessMissing(`listRuns ${dir}`, err)
         return []
     }
     const runs = await Promise.all(entries.filter((e) => e.isDirectory()).map((e) => readRun(dir, e.name)))
@@ -49,7 +58,8 @@ export const readAsset = async (dir: string, id: string, relPath: string): Promi
     }
     try {
         return await readFile(path)
-    } catch {
+    } catch (err) {
+        warnUnlessMissing(`readAsset ${id}/${relPath}`, err)
         return null
     }
 }

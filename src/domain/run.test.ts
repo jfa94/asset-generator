@@ -1,8 +1,8 @@
 import {describe, expect, it} from 'vitest'
-import {allApproved, canTransition, hasPending} from '@/domain/run'
+import {allApproved, canTransition, hasNotelessRedo, hasPending} from '@/domain/run'
 import type {Campaign, ReviewStatus, RunStatus} from '@/types/run'
 
-const campaign = (copyStatus: ReviewStatus, imageStatus: ReviewStatus): Campaign => ({
+const campaign = (copyStatus: ReviewStatus, imageStatus: ReviewStatus, imageNote = ''): Campaign => ({
     slug: 'c',
     copy: {
         rsa: {headlines: [], descriptions: [], paths: []},
@@ -20,7 +20,7 @@ const campaign = (copyStatus: ReviewStatus, imageStatus: ReviewStatus): Campaign
             platform: 'meta',
             format: '1080x1080',
             variant: 1,
-            review: {status: imageStatus, note: ''},
+            review: {status: imageStatus, note: imageNote},
         },
     ],
 })
@@ -60,5 +60,12 @@ describe('review rollups', () => {
         expect(hasPending([campaign('approved', 'pending')])).toBe(true)
         expect(hasPending([campaign('approved', 'redo')])).toBe(false)
         expect(hasPending([campaign('approved', 'approved'), campaign('approved', 'pending')])).toBe(true)
+    })
+
+    it('hasNotelessRedo flags redos with empty or whitespace notes only', () => {
+        expect(hasNotelessRedo([campaign('approved', 'redo')])).toBe(true)
+        expect(hasNotelessRedo([campaign('approved', 'redo', '  ')])).toBe(true)
+        expect(hasNotelessRedo([campaign('approved', 'redo', 'logo overlaps headline')])).toBe(false)
+        expect(hasNotelessRedo([campaign('approved', 'approved')])).toBe(false)
     })
 })

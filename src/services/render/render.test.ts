@@ -110,6 +110,24 @@ describe('verifyPng', () => {
         const meta = await sharp(out).metadata()
         expect([meta.width, meta.height]).toEqual([1500, 1500])
     })
+
+    it('throws when compression cannot bring the image under the cap', {timeout: 60_000}, async () => {
+        // xorshift noise resists palette quantization + deflate → stays over 5MB
+        const raw = Buffer.alloc(3000 * 3000 * 3)
+        let s = 42
+        for (let i = 0; i < raw.length; i++) {
+            s ^= s << 13
+            s ^= s >>> 17
+            s ^= s << 5
+            raw[i] = s & 0xff
+        }
+        const big = await sharp(raw, {raw: {width: 3000, height: 3000, channels: 3}})
+            .png({compressionLevel: 0})
+            .toBuffer()
+        await expect(verifyPng(big, 3000, 3000, 'huge.png')).rejects.toThrow(
+            /exceeds cap \d+ after compression \(huge\.png\)/
+        )
+    })
 })
 
 describe('cli main', () => {

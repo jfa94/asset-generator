@@ -24,3 +24,7 @@ export const allApproved = (campaigns: Campaign[]): boolean =>
 
 export const hasPending = (campaigns: Campaign[]): boolean =>
     campaigns.some((c) => reviews(c).some((r) => r.status === 'pending'))
+
+/** A redo without a note gives the regenerating agent nothing to act on. */
+export const hasNotelessRedo = (campaigns: Campaign[]): boolean =>
+    campaigns.some((c) => reviews(c).some((r) => r.status === 'redo' && r.note.trim() === ''))
