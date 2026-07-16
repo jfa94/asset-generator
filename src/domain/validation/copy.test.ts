@@ -170,7 +170,7 @@ describe('isNearDuplicate boundaries', () => {
 })
 
 describe('charCount', () => {
-    it('counts code points, not UTF-16 units', () => {
+    it('counts graphemes, not UTF-16 units', () => {
         expect(charCount('a𝒳b')).toBe(3)
         expect('a𝒳b'.length).toBe(4)
     })

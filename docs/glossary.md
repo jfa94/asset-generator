@@ -26,7 +26,7 @@ last-reviewed: 2026-07-15
 - **status**: accepted
 - **definition**: One end-to-end pass of the workflow: point at a product repo, choose how many Campaigns, review the Brief and Themes, approve, generate, review assets, finalize. All decisions and outputs of a Run persist on disk so it can be resumed.
 - **invariants**:
-    - Progresses only forward through: briefing → awaiting-approval → generating → reviewing → regenerating (loop) → complete.
+    - Progresses only forward through: briefing → awaiting-approval → generating → reviewing → (regenerating → reviewing)* → finalizing → complete.
     - Assets are final only when every one is approved.
 - **examples**: "3 campaigns for goodbyespy on 2026-07-15". Counter-example: regenerating one rejected image is part of the same Run, not a new one.
 - **relationships**: produces Campaigns; consumes one Brand Kit and one Brief

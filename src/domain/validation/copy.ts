@@ -56,7 +56,7 @@ export const isNearDuplicate = (a: string, b: string): boolean => {
     const wa = wordSet(a)
     const wb = wordSet(b)
     if (wa.size === 0 || wb.size === 0) {
-        return na === nb
+        return false
     }
     let shared = 0
     for (const w of wa) {
