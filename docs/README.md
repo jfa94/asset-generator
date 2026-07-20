@@ -1,4 +1,4 @@
-<!-- last-documented: 93d97f1ca9454afa7f475581d725c27fe6c10653 -->
+<!-- last-documented: c8385231bd8bed21d02efa1b13c090d826b532a4 -->
 
 # Asset Generator
 
@@ -23,10 +23,12 @@ The system is a coordination between two actors that never do each other's job:
 
 - A **Claude Code agent**, driven by `.claude/skills/new-run/SKILL.md`, does all
   generation: it reads the target repo, drafts a brief and campaign themes,
-  writes and validates copy, and renders images.
+  writes and validates copy, and composes creative specs. It renders PNGs only
+  at the very end, during finalize.
 - A **Next.js cockpit UI** does all approval: it lets the operator create runs,
-  edit and approve the brief and themes, and review the generated assets with
-  per-asset approve/redo controls.
+  edit and approve the brief and themes, and review the generated creatives —
+  previewed live in the browser — with per-variant approve/redo controls and
+  inline copy editing.
 
 Neither actor calls the other directly. They coordinate entirely through a single
 JSON file per run — `runs/<run-id>/run.json` — which is the one source of truth.
@@ -59,21 +61,21 @@ APIs.
 
 ## Documentation
 
-| Area                                                                           | Contents                                                  |
-| ------------------------------------------------------------------------------ | --------------------------------------------------------- |
-| [Getting started](getting-started.md)                                          | Run your first end-to-end campaign generation             |
-| [Architecture: overview](architecture/overview.md)                             | System context and the run.json coordination model        |
-| [Architecture: components](architecture/components.md)                         | The major building blocks and how they connect            |
-| [Guide: drive a run with the agent](guides/drive-a-run.md)                     | Operate the `/new-run` agent skill end to end             |
-| [Guide: review and regenerate](guides/review-and-regenerate.md)                | Approve, flag, and selectively regenerate assets          |
-| [Guide: render images from the CLI](guides/render-from-cli.md)                 | Run the renderer directly from a `jobs.json`              |
-| [Reference: run state](reference/run-state.md)                                 | `run.json` schema, statuses, and transitions              |
-| [Reference: copy limits](reference/copy-limits.md)                             | Per-platform copy field counts and character limits       |
-| [Reference: ad formats](reference/ad-formats.md)                               | Image dimensions, safe zones, and byte caps               |
-| [Reference: brand kit](reference/brand-kit.md)                                 | Brand-kit extraction sources and the `BrandKit` shape     |
-| [Reference: render jobs](reference/render-jobs.md)                             | `jobs.json` / `RenderJobFile` / `TemplateSpec` schema     |
-| [Reference: commands](reference/commands.md)                                   | Package scripts and helper tools                          |
-| [Explanation: coordination model](explanation/coordination-model.md)           | Why run.json is the sole interface, and how handoff works |
-| [Explanation: architecture boundaries](explanation/architecture-boundaries.md) | The enforced layering of the codebase                     |
-| [Explanation: rendering pipeline](explanation/rendering-pipeline.md)           | Why HTML templates + Puppeteer + Sharp                    |
-| [Glossary](glossary.md)                                                        | Ubiquitous-language domain terms (maintained separately)  |
+| Area                                                                           | Contents                                                   |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| [Getting started](getting-started.md)                                          | Run your first end-to-end campaign generation              |
+| [Architecture: overview](architecture/overview.md)                             | System context and the run.json coordination model         |
+| [Architecture: components](architecture/components.md)                         | The major building blocks and how they connect             |
+| [Guide: drive a run with the agent](guides/drive-a-run.md)                     | Operate the `/new-run` agent skill end to end              |
+| [Guide: review and regenerate](guides/review-and-regenerate.md)                | Approve, flag, and selectively regenerate assets           |
+| [Guide: render images from the CLI](guides/render-from-cli.md)                 | Run the renderer directly from a `jobs.json`               |
+| [Reference: run state](reference/run-state.md)                                 | `run.json` schema, statuses, and transitions               |
+| [Reference: copy limits](reference/copy-limits.md)                             | Per-platform copy field counts and character limits        |
+| [Reference: ad formats](reference/ad-formats.md)                               | Image dimensions, safe zones, and byte caps                |
+| [Reference: brand kit](reference/brand-kit.md)                                 | Brand-kit extraction sources and the `BrandKit` shape      |
+| [Reference: render jobs](reference/render-jobs.md)                             | `jobs.json` / `RenderJobFile` / `RenderSpec` schema        |
+| [Reference: commands](reference/commands.md)                                   | Package scripts and helper tools                           |
+| [Explanation: coordination model](explanation/coordination-model.md)           | Why run.json is the sole interface, and how handoff works  |
+| [Explanation: architecture boundaries](explanation/architecture-boundaries.md) | The enforced layering of the codebase                      |
+| [Explanation: rendering pipeline](explanation/rendering-pipeline.md)           | Why one React lockup tree renders twice; Puppeteer + Sharp |
+| [Glossary](glossary.md)                                                        | Ubiquitous-language domain terms (maintained separately)   |

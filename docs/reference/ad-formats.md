@@ -14,7 +14,16 @@ Image dimensions, safe zones, and byte caps. Source of truth:
 | `meta`        | `feed`      | 1080  | 1350   | 4:5    | —                    |
 | `meta`        | `story`     | 1080  | 1920   | 9:16   | top 0.14, bottom 0.2 |
 
-The agent renders three variants per format per campaign.
+At finalize the agent renders every approved creative variant (typically 3 per
+campaign) across all six formats.
+
+## `REPRESENTATIVE`
+
+`REPRESENTATIVE` is a named entry in `AD_FORMATS` (the `google-pmax` `portrait`,
+960×1200) used as the editable preview in the cockpit — portrait reads best at
+card size. The review gallery shows each variant as a large, inline-editable
+`REPRESENTATIVE` preview plus a strip of live thumbnails for the other five
+formats. It is a normal format, so it is also rendered to PNG like the rest.
 
 ## `AdFormat` shape
 
@@ -33,7 +42,7 @@ The agent renders three variants per format per campaign.
 | `top`    | number | Fraction of height to keep clear at the top (platform chrome). |
 | `bottom` | number | Fraction of height to keep clear at the bottom (CTA sticker).  |
 
-Templates apply the safe zone as extra top/bottom padding so no copy or logo lands
+Lockups apply the safe zone as extra top/bottom padding so no copy or logo lands
 under platform UI. Only the 9:16 Meta `story` format declares one.
 
 ## Constants

@@ -1,41 +1,43 @@
 // CLI: pnpm render <jobs.json>
-// jobs.json: RenderJobFile[] — TemplateSpec with cssPaths/logoPath file refs instead
-// of inlined content; this CLI inlines them and renders.
+// jobs.json: RenderJobFile[] — flat render specs with cssPaths/logoPath/imagePath file refs
+// instead of inlined content; this CLI inlines them and renders.
 
 import {readFileSync} from 'node:fs'
-import {extname} from 'node:path'
 import {renderJobs, type RenderJob} from '@/services/render/render'
-import type {TemplateContent, TemplateSpecBase} from '@/lib/templates/types'
+import type {LockupFonts} from '@/lib/lockups/lockups'
+import type {LockupCopy, LockupId, Palette, SafeZone} from '@/types/creative'
+import {mimeFor} from '@/utils/mime'
 
-// Omit the plain base only — Omit over the full union would collapse the discriminant.
-export type RenderJobFile = Omit<TemplateSpecBase, 'cssText' | 'logoDataUri'> &
-    TemplateContent & {
-        cssPaths: string[]
-        logoPath: string | null
-        outPath: string
-    }
-
-const MIME: Record<string, string> = {
-    '.png': 'image/png',
-    '.svg': 'image/svg+xml',
-    '.webp': 'image/webp',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
+export interface RenderJobFile {
+    lockup: LockupId
+    palette: Palette
+    copy: LockupCopy
+    width: number
+    height: number
+    safeZone?: SafeZone | undefined
+    fonts: LockupFonts
+    cssPaths: string[]
+    logoPath: string | null
+    imagePath: string | null
+    outPath: string
 }
 
-export const toDataUri = (path: string): string => {
-    const mime = MIME[extname(path).toLowerCase()] ?? 'application/octet-stream'
-    return `data:${mime};base64,${readFileSync(path).toString('base64')}`
-}
+export const toDataUri = (path: string): string =>
+    `data:${mimeFor(path)};base64,${readFileSync(path).toString('base64')}`
 
 export const loadJobs = (jobsJsonPath: string): RenderJob[] => {
     const raw = JSON.parse(readFileSync(jobsJsonPath, 'utf8')) as RenderJobFile[]
-    return raw.map(({cssPaths, logoPath, outPath, ...spec}) => ({
-        outPath,
-        spec: {
-            ...spec,
-            cssText: cssPaths.map((p) => readFileSync(p, 'utf8')).join('\n'),
-            logoDataUri: logoPath === null ? null : toDataUri(logoPath),
+    return raw.map((j) => ({
+        outPath: j.outPath,
+        render: {
+            spec: {lockup: j.lockup, palette: j.palette, copy: j.copy},
+            width: j.width,
+            height: j.height,
+            safeZone: j.safeZone,
+            fonts: j.fonts,
+            cssText: j.cssPaths.map((p) => readFileSync(p, 'utf8')).join('\n'),
+            logoDataUri: j.logoPath === null ? null : toDataUri(j.logoPath),
+            imageDataUri: j.imagePath === null ? null : toDataUri(j.imagePath),
         },
     }))
 }

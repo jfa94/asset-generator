@@ -50,10 +50,11 @@ Click **Approve & generate**.
 
 ## 4. Let generation run
 
-The agent writes and validates copy for all three platforms and renders three
-image variants per format. It will not ship copy that fails validation or images
-that fail the dimension/byte checks — it iterates until they pass. When done, the
-run reaches `reviewing`.
+The agent writes and validates copy for all three platforms and composes three
+creative variants per campaign (distinct lockups, brand palette, and imagery where
+it fits). It will not ship copy that fails validation — it iterates until it
+passes. No PNGs are rendered at this stage; the cockpit previews the creatives
+live. When done, the run reaches `reviewing`.
 
 ## 5. Review
 

@@ -39,7 +39,7 @@ The kit gives you tokens, fonts, logos, css paths, and `voice` (null when the re
 Read the target repo (landing copy, README, pricing) and draft:
 
 - **Brief**: product, audience, valueProps (3–6), offer, landingUrl, voice (quote the brand-voice doc's Say/Avoid rules if present).
-- **Themes** (exactly `campaignCount`): each has `slug` (`<nn>-<kebab>`), `name`, `angle` (one of: benefit, proof, offer, problem, differentiation), `tone`, `sampleHeadline`, `visualDirection` (which templates + palette emphasis; template ids: poster-type, offer-stamp, proof-card, direct-cta, stat-callout). Themes must be genuinely distinct angles, not synonyms.
+- **Themes** (exactly `campaignCount`): each has `slug` (`<nn>-<kebab>`), `name`, `angle` (one of: benefit, proof, offer, problem, differentiation), `tone`, `sampleHeadline`, `visualDirection` (which lockups + palette emphasis; lockup ids from `LOCKUP_META` in `src/lib/lockups/lockups.tsx`: poster, screenshot-panel, screenshot-bleed, image-hero, stat, proof, badge). Themes must be genuinely distinct angles, not synonyms.
 
 Write both into run.json, set status `awaiting-approval`, then block:
 
@@ -51,6 +51,8 @@ Re-read run.json after it returns — the user may have edited every field. The 
 
 ### 4. Generate campaigns
 
+**Brand assets into the run dir** (once, before the campaigns): copy the brandkit's css file(s) to `runs/<run-id>/brand/`, the best logo to `runs/<run-id>/brand/logo.<ext>`, and any usable product imagery (scan the target repo for screenshots, mascot/hero art, app-store shots) to `runs/<run-id>/assets/`. Then set `run.brand` (`RunBrand` in `src/types/run.ts`): `{cssFile, fonts: {display, body}, logoFile}` — paths run-dir-relative, fonts from brandkit tokens.
+
 For each theme, produce one `Campaign` entry (`src/types/run.ts`):
 
 **Copy slates** — write per the rulebook below, then validate before saving:
@@ -61,13 +63,14 @@ pnpm tsx -e "…validateRsa/validatePmax/validateMeta from '@/domain/validation/
 
 Iterate until zero issues. Never trust your own character counting.
 
-**Images** — 3 variants per format. Formats come from `src/domain/formats.ts`: google-pmax 1200×628 / 1200×1200 / 960×1200 + one logo 1200×1200; meta 1080×1080 / 1080×1350 / 1080×1920 (safe zones are built into the templates). Compose a jobs.json of `RenderJobFile` entries (`src/services/render/cli.ts`): template + palette/fonts from brandkit tokens, cssPaths from the brandkit, logoPath from its logos, copy from the slate. Vary template and copy emphasis across the 3 variants per the theme's visualDirection. Then:
+**Creatives** — exactly 3 per campaign, as `Creative` entries (`{variant, spec, review}`). Each `spec` is a `CreativeSpec` (`src/types/creative.ts`): pick 3 **distinct** lockups from `LOCKUP_META` per the theme's visualDirection (each entry's `when` says what it's for; `required`/`optional` list its copy slots). Rules:
 
-```bash
-pnpm render runs/<run-id>/jobs.json
-```
+- ≥1 image lockup (`image: true`) when imagery exists in `runs/<run-id>/assets/`; `imageFile` is run-dir-relative.
+- Headline seeded from the strongest slate headline or the theme's `sampleHeadline`.
+- `stat`/`proof` lockups only with real numbers/quotes (rulebook below) — never pick them to fill a quota.
+- Palette from brandkit tokens (`{background, text, accent}`).
 
-Output PNGs go under `runs/<run-id>/assets/<campaign-slug>/`. Image `file` fields in run.json are run-dir-relative.
+**No rendering happens here.** The cockpit previews creatives live from the spec; PNGs are rendered only at finalize.
 
 All reviews start `{"status": "pending", "note": ""}`. Set status `reviewing`, then block:
 
@@ -77,22 +80,28 @@ node scripts/wait-for.mjs <run-id> regenerating,finalizing
 
 ### 5. Regeneration loop
 
-On `regenerating`: re-read run.json. For every review with status `redo`, regenerate ONLY that asset honoring its `note` (copy redo → rewrite that slate; image redo → new render job, same file path). Reset the redone reviews to `pending`, leave approved ones untouched, set status back to `reviewing`, block again. Loop until `finalizing`.
+On `regenerating`: re-read run.json. For every review with status `redo`, revise ONLY that item honoring its `note` (copy redo → rewrite that slate; creative redo → revise its `CreativeSpec` — lockup, copy, palette, or image as the note demands). Reset the redone reviews to `pending`, leave approved ones untouched, set status back to `reviewing`, block again. Still no rendering. Loop until `finalizing`. (The user may also have edited creative copy inline before approving — their spec edits are law, don't revert them.)
 
 ### 6. Finalize
+
+Now render: compose `runs/<run-id>/jobs.json` of `RenderJobFile` entries (`src/services/render/cli.ts`) — one job per approved creative × each of the 6 `AD_FORMATS` (`src/domain/formats.ts`, carrying each format's `safeZone`), plus one 1200×1200 logo image per pmax campaign. Fields: lockup/palette/copy from the spec, fonts from `run.brand`, cssPaths → the run-dir brand css, logoPath → `run.brand.logoFile`, imagePath → the spec's `imageFile` (null otherwise), outPath under `runs/<run-id>/assets/<campaign-slug>/`.
+
+```bash
+pnpm render runs/<run-id>/jobs.json
+```
 
 Write `~/Downloads/<product>-campaigns-<YYYY-MM-DD>/` with one folder per campaign:
 
 ```
 <nn>-<slug>/
 ├─ README.md              # theme, tone, rationale, upload notes (incl. RSA pinning advice)
-├─ manifest.json          # asset → template, variant, format, theme metadata
+├─ manifest.json          # asset → lockup, copy, variant, format, theme metadata
 ├─ google-rsa/text.md
 ├─ google-pmax/text.md + v{1-3}_<w>x<h>.png + logo_1200x1200.png
 └─ meta/text.md + v{1-3}_<w>x<h>.png
 ```
 
-Copy the approved PNGs from the run dir. Set `outputDir` and status `complete`. Tell the user the path.
+Copy the rendered PNGs into the packs. Set `outputDir` and status `complete`. Tell the user the path.
 
 ## Copywriting rulebook (distilled from the marketing research reports)
 

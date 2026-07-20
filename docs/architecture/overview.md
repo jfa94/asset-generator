@@ -19,10 +19,10 @@ graph TD
     Downloads[(~/Downloads campaign packs)]
 
     Operator -->|creates run, approves, reviews| UI
-    Agent -->|drafts, generates, renders| RunFile
+    Agent -->|drafts, generates specs| RunFile
     UI <-->|reads / writes state| RunFile
     Agent -->|reads brand + copy| TargetRepo
-    Agent -->|renders PNGs| Renderer
+    Agent -->|renders PNGs at finalize| Renderer
     Agent -->|writes final packs| Downloads
     Operator -->|invokes /new-run| Agent
 ```
@@ -41,7 +41,7 @@ Downloads directory.
 | -------------------------------- | ----- | ------------------------------------------ |
 | `briefing → awaiting-approval`   | Agent | Brief and themes drafted, ready for review |
 | `awaiting-approval → generating` | UI    | Operator approved the brief and themes     |
-| `generating → reviewing`         | Agent | Copy and images produced                   |
+| `generating → reviewing`         | Agent | Copy and creative specs produced (no PNGs) |
 | `reviewing → regenerating`       | UI    | Operator flagged one or more redos         |
 | `reviewing → finalizing`         | UI    | Operator approved everything               |
 | `regenerating → reviewing`       | Agent | Flagged assets regenerated                 |
@@ -71,7 +71,7 @@ graph TD
     end
     subgraph LibLayer[Lib]
         BrandKit[Brand-kit extraction]
-        Templates[HTML templates]
+        Lockups[Lockup bank client-safe]
     end
     subgraph Services[Services]
         Render[Puppeteer + Sharp renderer]
@@ -81,12 +81,13 @@ graph TD
     Wait[wait-for.mjs]
 
     Pages --> Actions
+    Pages -->|live preview| Lockups
     Actions --> Store
     Actions --> RunFsm
     Actions --> CopyVal
     AssetAPI --> Store
     RenderCLI --> Render
-    Render --> Templates
+    Render -->|renderToStaticMarkup| Lockups
     Render --> Formats
     Skill --> Store
     Skill --> BrandKit
@@ -98,9 +99,11 @@ graph TD
 ### Cockpit UI (`src/app/`)
 
 A Next.js App Router application. Pages list and create runs, show the approval
-form, and show the review gallery. Server actions (`actions.ts`) perform the
-UI-owned status transitions and persist operator edits. An image route
-(`/api/asset`) streams run-relative PNGs to the gallery.
+form, and show the review gallery — which previews each creative live by mounting
+the shared lockup component in the browser and scaling it to fit. Server actions
+(`actions.ts`) perform the UI-owned status transitions and persist operator edits.
+An asset route (`/api/asset`) streams run-relative files (images, brand CSS, logo)
+by MIME type to the previews and gallery.
 
 ### State store (`src/lib/state/store.ts`)
 
@@ -120,17 +123,21 @@ Reads a target repo and produces a `BrandKit`: tokens, fonts, logos, CSS paths,
 and voice. Prefers a Claude-Design `docs/design-system` manifest; falls back to
 parsing a global stylesheet's Tailwind `@theme` blocks.
 
-### Templates (`src/lib/templates/`)
+### Lockup bank (`src/lib/lockups/`)
 
-A small, fixed library of hand-designed ad layouts rendered as React/HTML. They
-carry no brand values — a `TemplateSpec` supplies palette, fonts, CSS, logo, and
-copy.
+A small, fixed library of seven hand-designed ad layouts authored as one
+client-safe React module (no `react-dom/server`). They carry no brand values — a
+`CreativeSpec` supplies lockup, palette, and copy, and fonts/CSS/logo/image arrive
+alongside. The same component tree renders live in the cockpit and to a PNG at
+finalize. `LOCKUP_META` declares each lockup's required/optional copy slots and
+whether it needs an image; `missingSlots` validates a spec at the finalize gate.
 
 ### Render pipeline (`src/services/render/`)
 
-Turns a `TemplateSpec` into a verified PNG using Puppeteer (headless Chrome
-screenshot) and Sharp (compression + pixel-exact dimension check). The `render`
-CLI loads a `jobs.json`, inlining CSS and logo file references.
+Turns a `RenderSpec` into a verified PNG at finalize using Puppeteer (headless
+Chrome screenshot of the lockup rendered via `renderToStaticMarkup`) and Sharp
+(compression + pixel-exact dimension check). The `render` CLI loads a `jobs.json`
+of flat `RenderJobFile` entries, inlining CSS, logo, and image file references.
 
 ### Agent skill (`.claude/skills/new-run/SKILL.md`)
 

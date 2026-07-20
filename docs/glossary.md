@@ -61,7 +61,7 @@ last-reviewed: 2026-07-15
     - Every visual property of a generated image traces back to the Brand Kit.
     - Voice guidance overrides generic advertising best practice when they conflict.
 - **examples**: goodbyespy's greens/creams, Besley/Familjen Grotesk, waving-spy logo, "no emoji, sentence case" voice. Counter-example: platform image size rules — those are platform specs, not brand.
-- **relationships**: consumed by a Run; skins Templates; constrains copy in every Asset Group
+- **relationships**: consumed by a Run; skins Lockups; constrains copy in every Asset Group
 
 ### Angle
 
@@ -83,7 +83,7 @@ last-reviewed: 2026-07-15
     - Exists in every aspect ratio its platform requires.
     - Individually approvable and regenerable.
 - **examples**: "v2" = the offer-stamp treatment of the price-honesty campaign, rendered 1:1, 4:5, and 9:16. Counter-example: the 4:5 crop of v2 alone — that is one size of a Variant, not a Variant.
-- **relationships**: belongs to an Asset Group; rendered from one Template
+- **relationships**: belongs to an Asset Group; rendered from one Lockup
 
 ### Asset Group
 
@@ -100,10 +100,34 @@ last-reviewed: 2026-07-15
 ### Template
 
 - **type**: Value Object
-- **status**: accepted
+- **status**: orphaned (code removed at c8385231 — superseded by Lockup; retained for human review)
 - **definition**: A fixed, hand-designed ad layout (headline placement, logo lockup, CTA block, safe-zone handling) that is skinned with a Brand Kit and filled with copy to produce a Variant. The library is deliberately small and built into the tool.
 - **invariants**:
     - Encodes creative best practice: one message, one CTA, small logo, safe zones respected.
     - Contains no brand-specific values; all styling arrives via the Brand Kit.
 - **examples**: poster-type, offer-stamp, proof-card, direct-cta, stat-callout. Counter-example: a bespoke layout authored for a single campaign.
-- **relationships**: renders Variants; skinned by the Brand Kit
+- **relationships**: renders Variants; skinned by the Brand Kit; superseded by Lockup
+
+## Drafts (Scribe-generated)
+
+<!-- Scaffolded by Scribe. Refine with /grill-me to capture domain-expert input. -->
+
+### Lockup
+
+- **type**: Value Object
+- **status**: draft
+- **definition**: TBD — needs domain-expert review. (Replaces the retired Template concept: a fixed, hand-designed ad layout with copy slots and an optional image slot, skinned by a Brand Kit. Seven exist: poster, screenshot-panel, screenshot-bleed, image-hero, stat, proof, badge. No CTA block — platforms overlay their own CTA.)
+- **invariants**: TBD — needs domain-expert review.
+- **examples**: TBD — needs domain-expert review.
+- **relationships**: renders Creatives; skinned by the Brand Kit; supersedes Template
+- **code anchor**: `src/lib/lockups/lockups.tsx:LOCKUP_META`
+
+### Creative
+
+- **type**: Entity
+- **status**: draft
+- **definition**: TBD — needs domain-expert review. (One creative variant within a Campaign: a Lockup choice plus palette, copy, and optional image, reviewed once across every output format. Replaces the per-format ImageAsset.)
+- **invariants**: TBD — needs domain-expert review.
+- **examples**: TBD — needs domain-expert review.
+- **relationships**: belongs to a Campaign; renders one Lockup; carries one Review
+- **code anchor**: `src/types/run.ts:Creative`

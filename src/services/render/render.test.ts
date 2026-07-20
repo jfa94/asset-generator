@@ -3,8 +3,8 @@ import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import sharp from 'sharp'
 import {afterAll, describe, expect, it, vi} from 'vitest'
-import type {TemplateSpec} from '@/lib/templates/types'
-import {loadJobs, main, toDataUri} from '@/services/render/cli'
+import {loadJobs, main, toDataUri, type RenderJobFile} from '@/services/render/cli'
+import type {RenderSpec} from '@/services/render/html'
 import {isBlockedRequestUrl, renderJobs, verifyPng} from '@/services/render/render'
 
 const dir = mkdtempSync(join(tmpdir(), 'render-'))
@@ -12,63 +12,77 @@ afterAll(() => {
     rmSync(dir, {recursive: true, force: true})
 })
 
-// Kitchen-sink copy (badge/stat included) satisfies every template variant of the union.
-const spec = (overrides: Partial<TemplateSpec>): TemplateSpec => ({
-    template: 'poster-type',
+const goodbyespyLogo = join(
+    process.cwd(),
+    'src/lib/brandkit/__fixtures__/goodbyespy/docs/design-system/assets/logo.png'
+)
+
+const renderSpec = (overrides: Partial<RenderSpec> = {}): RenderSpec => ({
+    spec: {
+        lockup: 'poster',
+        palette: {background: '#fffbf5', text: '#064e3b', accent: '#b5541f'},
+        copy: {
+            headline: 'Render smoke test',
+            subline: 'One purchase.',
+            badge: '50% off',
+            stat: '4.8',
+            statLabel: 'stars',
+        },
+    },
     width: 1200,
     height: 628,
-    palette: {
-        background: '#fffbf5',
-        text: '#064e3b',
-        accent: '#b5541f',
-        ctaBackground: '#064e3b',
-        ctaText: '#fffbf5',
-    },
     fonts: {display: 'Georgia', body: 'Helvetica'},
     cssText: '',
     logoDataUri: null,
-    copy: {headline: 'Render smoke test', cta: 'Go', badge: '50% off', stat: '4.8'},
+    imageDataUri: null,
     ...overrides,
 })
+
+const withLockup = (lockup: RenderSpec['spec']['lockup'], overrides: Partial<RenderSpec> = {}): RenderSpec => {
+    const base = renderSpec(overrides)
+    return {...base, spec: {...base.spec, lockup}}
+}
 
 describe('renderJobs', () => {
     it('renders each size pixel-exact, including 9:16 with safe zones', {timeout: 60_000}, async () => {
         const jobs = [
-            {spec: spec({width: 1200, height: 628}), outPath: join(dir, 'landscape.png')},
-            {spec: spec({template: 'offer-stamp', width: 1200, height: 1200}), outPath: join(dir, 'square.png')},
+            {render: renderSpec({width: 1200, height: 628}), outPath: join(dir, 'landscape.png')},
+            {render: withLockup('badge', {width: 1200, height: 1200}), outPath: join(dir, 'square.png')},
             {
-                spec: spec({
-                    template: 'stat-callout',
-                    width: 1080,
-                    height: 1920,
-                    safeZone: {top: 0.14, bottom: 0.2},
-                }),
+                render: withLockup('stat', {width: 1080, height: 1920, safeZone: {top: 0.14, bottom: 0.2}}),
                 outPath: join(dir, 'story.png'),
+            },
+            {
+                render: withLockup('image-hero', {
+                    width: 1080,
+                    height: 1080,
+                    imageDataUri: toDataUri(goodbyespyLogo),
+                }),
+                outPath: join(dir, 'hero.png'),
             },
         ]
         const results = await renderJobs(jobs)
-        expect(results).toHaveLength(3)
+        expect(results).toHaveLength(4)
         for (const job of jobs) {
             const meta = await sharp(job.outPath).metadata()
-            expect([meta.width, meta.height]).toEqual([job.spec.width, job.spec.height])
+            expect([meta.width, meta.height]).toEqual([job.render.width, job.render.height])
             expect(statSync(job.outPath).size).toBeLessThan(5 * 1024 * 1024)
         }
     })
 
     it('renders brand background color onto the canvas', {timeout: 60_000}, async () => {
         const out = join(dir, 'bg.png')
+        const base = renderSpec()
         await renderJobs([
             {
-                spec: spec({
-                    copy: {headline: 'x'},
-                    palette: {
-                        background: '#ff0000',
-                        text: '#000',
-                        accent: '#000',
-                        ctaBackground: '#000',
-                        ctaText: '#fff',
+                render: {
+                    ...base,
+                    spec: {
+                        ...base.spec,
+                        palette: {background: '#ff0000', text: '#000', accent: '#000'},
+                        copy: {headline: 'x'},
                     },
-                }),
+                },
                 outPath: out,
             },
         ])
@@ -169,6 +183,20 @@ describe('isBlockedRequestUrl', () => {
     })
 })
 
+const jobFile = (overrides: Partial<RenderJobFile>): RenderJobFile => ({
+    lockup: 'poster',
+    palette: {background: '#fffbf5', text: '#064e3b', accent: '#b5541f'},
+    copy: {headline: 'Render smoke test'},
+    width: 300,
+    height: 300,
+    fonts: {display: 'Georgia', body: 'Helvetica'},
+    cssPaths: [],
+    logoPath: null,
+    imagePath: null,
+    outPath: join(dir, 'out.png'),
+    ...overrides,
+})
+
 describe('cli main', () => {
     it('throws usage without a jobs path', async () => {
         const argv = process.argv
@@ -183,23 +211,7 @@ describe('cli main', () => {
     it('renders jobs from the file given on argv', {timeout: 60_000}, async () => {
         const jobsFile = join(dir, 'main-jobs.json')
         const out = join(dir, 'main-out.png')
-        const base = spec({width: 300, height: 300})
-        writeFileSync(
-            jobsFile,
-            JSON.stringify([
-                {
-                    template: base.template,
-                    width: base.width,
-                    height: base.height,
-                    palette: base.palette,
-                    fonts: base.fonts,
-                    copy: base.copy,
-                    cssPaths: [],
-                    logoPath: null,
-                    outPath: out,
-                },
-            ])
-        )
+        writeFileSync(jobsFile, JSON.stringify([jobFile({outPath: out})]))
         const argv = process.argv
         const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined)
         process.argv = [...argv.slice(0, 2), jobsFile]
@@ -216,35 +228,43 @@ describe('cli main', () => {
 })
 
 describe('loadJobs', () => {
-    it('inlines css files and logo data uri', () => {
+    it('inlines css files, logo, and image data uris', () => {
         const css = join(dir, 'a.css')
         writeFileSync(css, 'body{--x:1}')
         const css2 = join(dir, 'b.css')
         writeFileSync(css2, 'body{--y:2}')
         const logo = join(dir, 'logo.png')
         writeFileSync(logo, Buffer.from('89504e47', 'hex'))
+        const image = join(dir, 'shot.jpg')
+        writeFileSync(image, Buffer.from('ffd8ffe0', 'hex'))
         const jobsFile = join(dir, 'jobs.json')
-        const base = spec({})
         writeFileSync(
             jobsFile,
             JSON.stringify([
-                {
-                    template: base.template,
-                    width: base.width,
-                    height: base.height,
-                    palette: base.palette,
-                    fonts: base.fonts,
-                    copy: base.copy,
+                jobFile({
+                    lockup: 'image-hero',
+                    safeZone: {top: 0.14, bottom: 0.2},
                     cssPaths: [css, css2],
                     logoPath: logo,
-                    outPath: join(dir, 'out.png'),
-                },
+                    imagePath: image,
+                }),
             ])
         )
         const jobs = loadJobs(jobsFile)
-        expect(jobs[0]?.spec.cssText).toBe('body{--x:1}\nbody{--y:2}')
-        expect(jobs[0]?.spec.logoDataUri).toMatch(/^data:image\/png;base64,/)
+        expect(jobs[0]?.render.spec.lockup).toBe('image-hero')
+        expect(jobs[0]?.render.cssText).toBe('body{--x:1}\nbody{--y:2}')
+        expect(jobs[0]?.render.logoDataUri).toMatch(/^data:image\/png;base64,/)
+        expect(jobs[0]?.render.imageDataUri).toMatch(/^data:image\/jpeg;base64,/)
+        expect(jobs[0]?.render.safeZone).toEqual({top: 0.14, bottom: 0.2})
         expect(jobs[0]?.outPath).toBe(join(dir, 'out.png'))
+    })
+
+    it('leaves logo and image null when the job has none', () => {
+        const jobsFile = join(dir, 'jobs-null.json')
+        writeFileSync(jobsFile, JSON.stringify([jobFile({})]))
+        const jobs = loadJobs(jobsFile)
+        expect(jobs[0]?.render.logoDataUri).toBeNull()
+        expect(jobs[0]?.render.imageDataUri).toBeNull()
     })
 
     it('maps mime types by extension', () => {
@@ -254,6 +274,7 @@ describe('loadJobs', () => {
             ['jpg', 'image/jpeg'],
             ['jpeg', 'image/jpeg'],
             ['png', 'image/png'],
+            ['css', 'text/css'],
         ]
         for (const [ext, mime] of cases) {
             const f = join(dir, `mime.${ext}`)

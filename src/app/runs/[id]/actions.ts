@@ -1,8 +1,9 @@
 'use server'
 
 import {revalidatePath} from 'next/cache'
-import {allApproved, canTransition, hasNotelessRedo, hasPending} from '@/domain/run'
+import {allApproved, approvePending, canTransition, hasNotelessRedo} from '@/domain/run'
 import {validateMeta, validatePmax, validateRsa} from '@/domain/validation/copy'
+import {LOCKUP_META, missingSlots} from '@/lib/lockups/lockups'
 import {readRun, RUNS_DIR, writeRun} from '@/lib/state/store'
 import type {Brief, Campaign, Theme} from '@/types/run'
 
@@ -55,9 +56,10 @@ const withinBounds = (campaigns: Campaign[]): boolean =>
     JSON.stringify(campaigns).length <= MAX_PAYLOAD_BYTES
 
 /**
- * reviewing → regenerating (any redo) | finalizing (all approved). Copy edits are persisted either way.
- * Copy limits are enforced only on the finalizing path — the redo path exists to repair bad copy, so
- * blocking it on those same limits would deadlock a run whose flagged assets have invalid copy.
+ * reviewing → regenerating (any redo) | finalizing (all approved). Copy edits are persisted either
+ * way, and anything left pending is bulk-approved — submit means "everything I didn't flag is fine".
+ * Copy/creative validity is enforced only on the finalizing path — the redo path exists to repair
+ * bad assets, so blocking it on those same rules would deadlock a run whose flagged assets are invalid.
  */
 export const submitReviewsAction = async (
     id: string,
@@ -70,24 +72,29 @@ export const submitReviewsAction = async (
     if (!withinBounds(campaigns)) {
         return [null, 'Submission is too large.']
     }
-    if (hasPending(campaigns)) {
-        return [null, 'Every asset needs a decision (approve or redo).']
-    }
     if (hasNotelessRedo(campaigns)) {
         return [null, 'Every redo needs a note for the agent.']
     }
-    const status = allApproved(campaigns) ? 'finalizing' : 'regenerating'
+    const decided = approvePending(campaigns)
+    const status = allApproved(decided) ? 'finalizing' : 'regenerating'
     if (status === 'finalizing') {
-        const copyIssues = campaigns.flatMap((c) => [
+        const issues = decided.flatMap((c) => [
             ...validateRsa(c.copy.rsa).map((i) => `${c.slug} rsa.${i.field}: ${i.message}`),
             ...validatePmax(c.copy.pmax).map((i) => `${c.slug} pmax.${i.field}: ${i.message}`),
             ...validateMeta(c.copy.meta).map((i) => `${c.slug} meta.${i.field}: ${i.message}`),
+            ...(c.creatives ?? []).flatMap((cr) =>
+                cr.spec.lockup in LOCKUP_META
+                    ? missingSlots(cr.spec).map(
+                          (s) => `${c.slug} v${String(cr.variant)} (${cr.spec.lockup}): missing ${s}`
+                      )
+                    : [`${c.slug} v${String(cr.variant)}: unknown lockup '${cr.spec.lockup}'`]
+            ),
         ])
-        if (copyIssues.length > 0) {
-            return [null, copyIssues.join('\n')]
+        if (issues.length > 0) {
+            return [null, issues.join('\n')]
         }
     }
-    await writeRun(RUNS_DIR, {...run, campaigns, status})
+    await writeRun(RUNS_DIR, {...run, campaigns: decided, status})
     revalidatePath(`/runs/${id}`)
     return [status, null]
 }

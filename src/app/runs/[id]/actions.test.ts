@@ -1,5 +1,6 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest'
-import type {Campaign, CampaignCopy, ReviewStatus, RunState} from '@/types/run'
+import type {Campaign, CampaignCopy, Creative, ReviewStatus, RunState} from '@/types/run'
+import type {LockupId} from '@/types/creative'
 
 vi.mock('next/cache', () => ({revalidatePath: vi.fn()}))
 vi.mock('@/lib/state/store', () => ({
@@ -46,7 +47,17 @@ const review = (status: ReviewStatus): {status: ReviewStatus; note: string} => (
     note: status === 'redo' ? 'fix this' : '',
 })
 
-const campaign = (copy: CampaignCopy, copyStatus: ReviewStatus, imageStatus: ReviewStatus): Campaign => ({
+const creative = (status: ReviewStatus, lockup: LockupId = 'poster'): Creative => ({
+    variant: 1,
+    spec: {
+        lockup,
+        palette: {background: '#fff', text: '#000', accent: '#f00'},
+        copy: {headline: 'Strong headline'},
+    },
+    review: review(status),
+})
+
+const campaign = (copy: CampaignCopy, copyStatus: ReviewStatus, creativeStatus: ReviewStatus): Campaign => ({
     slug: 'c',
     copy,
     copyReviews: {
@@ -54,15 +65,7 @@ const campaign = (copy: CampaignCopy, copyStatus: ReviewStatus, imageStatus: Rev
         pmax: review(copyStatus),
         meta: review(copyStatus),
     },
-    images: [
-        {
-            file: 'assets/v1.png',
-            platform: 'meta',
-            format: 'square',
-            variant: 1,
-            review: review(imageStatus),
-        },
-    ],
+    creatives: [creative(creativeStatus)],
 })
 
 const reviewingRun = {id: 'r1', status: 'reviewing'} as RunState
@@ -168,20 +171,23 @@ describe('submitReviewsAction', () => {
         expect(mockWriteRun).not.toHaveBeenCalled()
     })
 
-    it('rejects when any asset is still pending', async () => {
-        const [status, err] = await submitReviewsAction('r1', [campaign(validCopy(), 'pending', 'approved')])
-        expect(status).toBeNull()
-        expect(err).toBe('Every asset needs a decision (approve or redo).')
-        expect(mockWriteRun).not.toHaveBeenCalled()
-    })
-
     it('rejects a redo without a note', async () => {
         const c = campaign(validCopy(), 'approved', 'redo')
-        c.images = c.images.map((i) => ({...i, review: {status: 'redo', note: ''}}))
+        c.creatives = [{...creative('redo'), review: {status: 'redo', note: ''}}]
         const [status, err] = await submitReviewsAction('r1', [c])
         expect(status).toBeNull()
         expect(err).toBe('Every redo needs a note for the agent.')
         expect(mockWriteRun).not.toHaveBeenCalled()
+    })
+
+    it('bulk-approves anything left pending on submit', async () => {
+        const [status, err] = await submitReviewsAction('r1', [campaign(validCopy(), 'pending', 'pending')])
+        expect(err).toBeNull()
+        expect(status).toBe('finalizing')
+        const written = mockWriteRun.mock.calls[0]?.[1]
+        const c = written?.campaigns?.[0]
+        expect(c?.copyReviews.rsa.status).toBe('approved')
+        expect(c?.creatives?.[0]?.review.status).toBe('approved')
     })
 
     it('blocks finalizing when approved copy violates platform limits', async () => {
@@ -189,6 +195,32 @@ describe('submitReviewsAction', () => {
         expect(status).toBeNull()
         expect(err).toContain('rsa.headlines')
         expect(mockWriteRun).not.toHaveBeenCalled()
+    })
+
+    it('blocks finalizing when a creative is missing required slots', async () => {
+        const c = campaign(validCopy(), 'approved', 'approved')
+        c.creatives = [creative('approved', 'stat')]
+        const [status, err] = await submitReviewsAction('r1', [c])
+        expect(status).toBeNull()
+        expect(err).toContain('missing stat')
+        expect(mockWriteRun).not.toHaveBeenCalled()
+    })
+
+    it('blocks finalizing when a creative names an unknown lockup', async () => {
+        const c = campaign(validCopy(), 'approved', 'approved')
+        c.creatives = [creative('approved', 'holographic' as LockupId)]
+        const [status, err] = await submitReviewsAction('r1', [c])
+        expect(status).toBeNull()
+        expect(err).toContain("unknown lockup 'holographic'")
+        expect(mockWriteRun).not.toHaveBeenCalled()
+    })
+
+    it('tolerates campaigns without creatives (legacy runs)', async () => {
+        const c = campaign(validCopy(), 'approved', 'approved')
+        delete c.creatives
+        const [status, err] = await submitReviewsAction('r1', [c])
+        expect(err).toBeNull()
+        expect(status).toBe('finalizing')
     })
 
     // Regression: the redo path repairs bad copy, so invalid copy must NOT block regeneration.

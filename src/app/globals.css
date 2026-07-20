@@ -1,1 +1,8 @@
 @import 'tailwindcss';
+
+/* Tailwind 4 preflight dropped the pointer cursor on buttons; restore it. */
+@layer base {
+    button:not(:disabled) {
+        cursor: pointer;
+    }
+}

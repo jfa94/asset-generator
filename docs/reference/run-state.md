@@ -16,7 +16,8 @@ the agent.
 | `status`        | `RunStatus`  | always                   | Current lifecycle status (see below).                                        |
 | `brief`         | `Brief`      | from `awaiting-approval` | The "what are we advertising" summary.                                       |
 | `themes`        | `Theme[]`    | from `awaiting-approval` | One theme per campaign.                                                      |
-| `campaigns`     | `Campaign[]` | from `reviewing`         | Generated copy and image assets.                                             |
+| `campaigns`     | `Campaign[]` | from `reviewing`         | Generated copy and creative specs.                                           |
+| `brand`         | `RunBrand`   | from `reviewing`         | Brand assets the agent copied into the run dir (see below).                  |
 | `outputDir`     | string       | on `complete`            | Final Downloads path written by the agent.                                   |
 
 ## `RunStatus`
@@ -72,26 +73,53 @@ One per campaign.
 | `angle`           | string | Persuasive strategy: benefit, proof, offer, problem, differentiation. |
 | `tone`            | string | Tone notes.                                                           |
 | `sampleHeadline`  | string | Example headline conveying the theme.                                 |
-| `visualDirection` | string | Which templates and palette emphasis to use.                          |
+| `visualDirection` | string | Which lockups and palette emphasis to use.                            |
 
 ## `Campaign`
 
-| Field         | Type                                          | Description                        |
-| ------------- | --------------------------------------------- | ---------------------------------- |
-| `slug`        | string                                        | Matches the theme slug.            |
-| `copy`        | `CampaignCopy`                                | `{ rsa, pmax, meta }` copy slates. |
-| `copyReviews` | `{ rsa: Review; pmax: Review; meta: Review }` | Per-slate review state.            |
-| `images`      | `ImageAsset[]`                                | Rendered image assets.             |
+| Field         | Type                                          | Description                                            |
+| ------------- | --------------------------------------------- | ------------------------------------------------------ |
+| `slug`        | string                                        | Matches the theme slug.                                |
+| `copy`        | `CampaignCopy`                                | `{ rsa, pmax, meta }` copy slates.                     |
+| `copyReviews` | `{ rsa: Review; pmax: Review; meta: Review }` | Per-slate review state.                                |
+| `creatives`   | `Creative[]` (optional)                       | Creative specs, typically 3 distinct lockups/campaign. |
 
-### `ImageAsset`
+### `Creative`
 
-| Field      | Type                    | Description                                                                                                                          |
-| ---------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `file`     | string                  | Path relative to the run directory.                                                                                                  |
-| `platform` | `google-pmax` \| `meta` | Target platform.                                                                                                                     |
-| `format`   | `AdFormatName`          | Format name: `landscape` \| `square` \| `portrait` \| `feed` \| `story`. Shared with `AdFormat.name`; defined in `src/types/run.ts`. |
-| `variant`  | number                  | Variant index (1–3).                                                                                                                 |
-| `review`   | `Review`                | Review state.                                                                                                                        |
+One creative variant. A single `review` covers the variant across every output
+format — review is per variant, not per rendered image.
+
+| Field     | Type           | Description                                         |
+| --------- | -------------- | --------------------------------------------------- |
+| `variant` | number         | Variant index (1–3).                                |
+| `spec`    | `CreativeSpec` | The lockup, palette, copy, and optional image slot. |
+| `review`  | `Review`       | Review state for this variant.                      |
+
+### `CreativeSpec`
+
+Defined in `src/types/creative.ts`. A flat, JSON-safe bag validated at runtime by
+`missingSlots` (`src/lib/lockups/lockups.tsx`).
+
+| Field       | Type         | Presence           | Description                                                                |
+| ----------- | ------------ | ------------------ | -------------------------------------------------------------------------- |
+| `lockup`    | `LockupId`   | required           | Which of the seven lockups to render.                                      |
+| `palette`   | `Palette`    | required           | `{background, text, accent}` from the brand kit.                           |
+| `copy`      | `LockupCopy` | required           | Text slots; `headline` always present, rest per the lockup.                |
+| `imageFile` | string       | image lockups only | Run-dir-relative image asset; required by image lockups per `LOCKUP_META`. |
+
+See [Reference: render jobs](render-jobs.md) for the full `LockupId`, `Palette`,
+and `LockupCopy` shapes.
+
+### `RunBrand`
+
+Defined in `src/types/run.ts`. Brand assets the agent copies into the run dir so
+the cockpit preview and the renderer can load them; served through `/api/asset`.
+
+| Field      | Type                              | Description                                                 |
+| ---------- | --------------------------------- | ----------------------------------------------------------- |
+| `cssFile`  | string                            | Run-dir-relative brand stylesheet (`@import`/`@font-face`). |
+| `fonts`    | `{display: string; body: string}` | Concrete font family names loaded by `cssFile`.             |
+| `logoFile` | string \| null                    | Run-dir-relative logo image; `null` when the repo has none. |
 
 ### `Review`
 
@@ -102,14 +130,20 @@ One per campaign.
 
 ## Aggregate review helpers
 
-Defined in `src/domain/run.ts`, used to decide the `reviewing` exit:
+Defined in `src/domain/run.ts`, used to decide the `reviewing` exit. Each helper
+folds over every copy review and every creative variant review in a campaign:
 
-- `allApproved(campaigns)` — true when every copy review and every image review is
-  `approved`; the UI routes to `finalizing`.
-- `hasPending(campaigns)` — true when any review is still `pending`; the UI blocks
-  submission until every asset has a decision.
+- `approvePending(campaigns)` — returns a copy of the campaigns with every
+  `pending` review flipped to `approved`. Submit means "everything I didn't flag
+  is fine", so the UI bulk-approves on submit rather than requiring an explicit
+  decision on each item.
+- `allApproved(campaigns)` — true when every review is `approved`; after
+  `approvePending`, the UI routes to `finalizing`.
 - `hasNotelessRedo(campaigns)` — true when any review is `redo` with an empty note;
   the UI blocks submission until every redo carries a note for the agent.
+
+`STATUS_LABELS` (also in `src/domain/run.ts`) maps each `RunStatus` to a human
+label and an `actor` (`agent` | `you` | `done`) so the UI can show who acts next.
 
 ## On-disk layout of a run
 
@@ -117,9 +151,15 @@ Defined in `src/domain/run.ts`, used to decide the `reviewing` exit:
 runs/<run-id>/
 ├── run.json                       # this schema
 ├── brandkit.json                  # extracted BrandKit (agent input)
-├── jobs.json                      # render jobs for the batch
-└── assets/<campaign-slug>/        # rendered PNGs, e.g. v1_1080x1080.png
+├── brand/                         # brand assets copied in: cssFile, logo (RunBrand)
+├── assets/                        # product imagery + rendered PNGs
+│   └── <campaign-slug>/           # PNGs written at finalize, e.g. v1_1080x1080.png
+└── jobs.json                      # render jobs, written at finalize
 ```
+
+`brand/` and the product imagery under `assets/` are populated at generation so
+the cockpit can preview creatives live. `jobs.json` and the rendered PNGs appear
+only at finalize.
 
 Writes to `run.json` are atomic (temp file + rename) so watchers never read a torn
 file.

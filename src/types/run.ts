@@ -1,4 +1,5 @@
 import type {MetaCopy, PmaxCopy, RsaCopy} from '@/types/copy'
+import type {CreativeSpec} from '@/types/creative'
 
 // run.json is the single interface between the cockpit UI and the agent.
 // UI transitions: awaiting-approval→generating, reviewing→regenerating|finalizing.
@@ -35,13 +36,21 @@ export interface Review {
     note: string
 }
 
-export interface ImageAsset {
-    /** Path relative to the run directory. */
-    file: string
-    platform: 'google-pmax' | 'meta'
-    format: AdFormatName
+export interface Creative {
     variant: number
+    spec: CreativeSpec
+    /** one review covers this variant across all output formats */
     review: Review
+}
+
+/** Brand assets the agent copies into the run dir so /api/asset can serve them. */
+export interface RunBrand {
+    /** run-dir-relative brand stylesheet (@import/@font-face for the cockpit preview) */
+    cssFile: string
+    /** concrete font family names, loaded by cssFile */
+    fonts: {display: string; body: string}
+    /** run-dir-relative logo image; null when the repo has none */
+    logoFile: string | null
 }
 
 export interface CampaignCopy {
@@ -54,7 +63,7 @@ export interface Campaign {
     slug: string
     copy: CampaignCopy
     copyReviews: {rsa: Review; pmax: Review; meta: Review}
-    images: ImageAsset[]
+    creatives?: Creative[]
 }
 
 export interface RunState {
@@ -66,6 +75,7 @@ export interface RunState {
     brief?: Brief
     themes?: Theme[]
     campaigns?: Campaign[]
+    brand?: RunBrand
     /** Final Downloads path, set by the agent on completion. */
     outputDir?: string
 }

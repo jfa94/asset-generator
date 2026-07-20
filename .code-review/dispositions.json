@@ -1,21 +1,17 @@
 {
-  "version": 1,
-  "dispositions": [
-    {
-      "id": 1,
-      "status": "accepted-risk",
-      "fingerprint": {
-        "file": "src/types/run.ts",
-        "title": "RunState makes every state-dependent field optional; status machine not encoded in the type",
-        "keywords": [
-          "RunState",
-          "discriminated union",
-          "optional"
-        ]
-      },
-      "reason": "User decision: run.json is authored by an external agent through an unchecked cast (store.ts); a discriminated union adds wide consumer churn without runtime enforcement at the actual trust boundary. Every optional-field consumer already guards undefined.",
-      "decidedBy": "caller",
-      "decidedAt": "2026-07-16T08:33:32.024Z"
-    }
-  ]
+    "version": 1,
+    "dispositions": [
+        {
+            "id": 1,
+            "status": "accepted-risk",
+            "fingerprint": {
+                "file": "src/types/run.ts",
+                "title": "RunState makes every state-dependent field optional; status machine not encoded in the type",
+                "keywords": ["RunState", "discriminated union", "optional"]
+            },
+            "reason": "User decision: run.json is authored by an external agent through an unchecked cast (store.ts); a discriminated union adds wide consumer churn without runtime enforcement at the actual trust boundary. Every optional-field consumer already guards undefined.",
+            "decidedBy": "caller",
+            "decidedAt": "2026-07-16T08:33:32.024Z"
+        }
+    ]
 }

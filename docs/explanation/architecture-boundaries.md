@@ -6,16 +6,16 @@ between layers are constrained. The rules are enforced, not aspirational: ESLint
 
 ## The layers
 
-| Layer        | Location          | Responsibility                                                |
-| ------------ | ----------------- | ------------------------------------------------------------- |
-| `app`        | `src/app/`        | Next.js pages, server actions, API routes.                    |
-| `components` | `src/components/` | Reusable UI (not currently populated).                        |
-| `services`   | `src/services/`   | Orchestration, e.g. the render pipeline.                      |
-| `domain`     | `src/domain/`     | Pure business logic: run state machine, validation, formats.  |
-| `lib`        | `src/lib/`        | Infrastructure: state store, brand-kit extraction, templates. |
-| `types`      | `src/types/`      | Shared type definitions (leaf).                               |
-| `utils`      | `src/utils/`      | Shared helpers (leaf).                                        |
-| `config`     | `src/config/`     | Configuration (leaf).                                         |
+| Layer        | Location          | Responsibility                                               |
+| ------------ | ----------------- | ------------------------------------------------------------ |
+| `app`        | `src/app/`        | Next.js pages, server actions, API routes.                   |
+| `components` | `src/components/` | Reusable UI: auto-refresh, live creative previews.           |
+| `services`   | `src/services/`   | Orchestration, e.g. the render pipeline.                     |
+| `domain`     | `src/domain/`     | Pure business logic: run state machine, validation, formats. |
+| `lib`        | `src/lib/`        | Infrastructure: state store, brand-kit extraction, lockups.  |
+| `types`      | `src/types/`      | Shared type definitions (leaf).                              |
+| `utils`      | `src/utils/`      | Shared helpers (leaf).                                       |
+| `config`     | `src/config/`     | Configuration (leaf).                                        |
 
 ## The dependency rule
 

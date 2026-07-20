@@ -3,13 +3,21 @@
 import {useRouter} from 'next/navigation'
 import {useState, useTransition} from 'react'
 import {submitReviewsAction} from '@/app/runs/[id]/actions'
-import type {Campaign, CampaignCopy, Review, RunState} from '@/types/run'
+import CreativeCard from '@/components/creative/CreativeCard'
+import ReviewControls from '@/components/creative/ReviewControls'
+import type {Campaign, CampaignCopy, RunState} from '@/types/run'
 
 interface ReviewGalleryProps {
     run: RunState
 }
 
 type CopyPlatform = keyof CampaignCopy
+
+const PLATFORM_LABELS: Record<CopyPlatform, string> = {
+    rsa: 'Google Search ads (RSA)',
+    pmax: 'Google Performance Max',
+    meta: 'Meta (Facebook/Instagram)',
+}
 
 const COPY_LISTS: Record<CopyPlatform, [string, string][]> = {
     rsa: [
@@ -29,45 +37,10 @@ const COPY_LISTS: Record<CopyPlatform, [string, string][]> = {
     ],
 }
 
-interface ReviewControlsProps {
-    review: Review
-    onChange: (review: Review) => void
-}
-
-const ReviewControls = ({review, onChange}: ReviewControlsProps) => (
-    <div className='flex items-center gap-2'>
-        <button
-            type='button'
-            onClick={() => {
-                onChange({...review, status: 'approved'})
-            }}
-            className={`rounded px-2 py-1 text-xs ${review.status === 'approved' ? 'bg-emerald-600' : 'bg-neutral-800'}`}
-        >
-            ✓ Approve
-        </button>
-        <button
-            type='button'
-            onClick={() => {
-                onChange({...review, status: 'redo'})
-            }}
-            className={`rounded px-2 py-1 text-xs ${review.status === 'redo' ? 'bg-amber-600' : 'bg-neutral-800'}`}
-        >
-            ↻ Redo
-        </button>
-        {review.status === 'redo' && (
-            <input
-                value={review.note}
-                onChange={(e) => {
-                    onChange({...review, note: e.target.value})
-                }}
-                placeholder='What should change?'
-                className='w-64 rounded bg-neutral-800 px-2 py-1 text-xs'
-            />
-        )}
-    </div>
-)
-
-/** Gallery + selective regeneration: decide every asset, edit copy inline, then submit. */
+/**
+ * Live creative previews + copy slates, one review per variant/slate; anything left
+ * pending is approved on submit (the server action bulk-approves).
+ */
 const ReviewGallery = ({run}: ReviewGalleryProps) => {
     const [campaigns, setCampaigns] = useState<Campaign[]>(run.campaigns ?? [])
     const [error, setError] = useState<string | null>(null)
@@ -87,6 +60,9 @@ const ReviewGallery = ({run}: ReviewGalleryProps) => {
 
     const themeName = (slug: string): string => run.themes?.find((t) => t.slug === slug)?.name ?? slug
 
+    // const-narrowed so the map callbacks below see it as defined (legacy runs have no brand)
+    const brand = run.brand
+
     const submit = (): void => {
         startTransition(async () => {
             const [, err] = await submitReviewsAction(run.id, campaigns)
@@ -98,7 +74,7 @@ const ReviewGallery = ({run}: ReviewGalleryProps) => {
     }
 
     const anyRedo = campaigns.some((c) =>
-        [c.copyReviews.rsa, c.copyReviews.pmax, c.copyReviews.meta, ...c.images.map((i) => i.review)].some(
+        [c.copyReviews.rsa, c.copyReviews.pmax, c.copyReviews.meta, ...(c.creatives ?? []).map((cr) => cr.review)].some(
             (r) => r.status === 'redo'
         )
     )
@@ -111,36 +87,39 @@ const ReviewGallery = ({run}: ReviewGalleryProps) => {
                         {themeName(c.slug)} <span className='font-mono text-xs text-neutral-500'>{c.slug}</span>
                     </h2>
 
-                    <div className='grid grid-cols-2 gap-4 md:grid-cols-3'>
-                        {c.images.map((img, ii) => (
-                            <figure key={img.file} className='space-y-2'>
-                                <img
-                                    src={`/api/asset?run=${run.id}&f=${encodeURIComponent(img.file)}`}
-                                    alt={`${c.slug} ${img.platform} ${img.format} v${String(img.variant)}`}
-                                    className='w-full rounded border border-neutral-800'
-                                />
-                                <figcaption className='text-xs text-neutral-400'>
-                                    {img.platform} · {img.format} · v{img.variant}
-                                </figcaption>
-                                <ReviewControls
-                                    review={img.review}
-                                    onChange={(review) => {
+                    {brand !== undefined && (
+                        <div className='grid grid-cols-1 gap-6 lg:grid-cols-2 2xl:grid-cols-3'>
+                            {(c.creatives ?? []).map((creative, vi) => (
+                                <CreativeCard
+                                    key={creative.variant}
+                                    runId={run.id}
+                                    brand={brand}
+                                    creative={creative}
+                                    onEdit={(slot, value) => {
                                         patch(ci, (draft) => {
-                                            const target = draft.images[ii]
+                                            const target = (draft.creatives ?? [])[vi]
+                                            if (target !== undefined) {
+                                                target.spec.copy[slot] = value
+                                            }
+                                        })
+                                    }}
+                                    onReview={(review) => {
+                                        patch(ci, (draft) => {
+                                            const target = (draft.creatives ?? [])[vi]
                                             if (target !== undefined) {
                                                 target.review = review
                                             }
                                         })
                                     }}
                                 />
-                            </figure>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+                    )}
 
                     {(Object.keys(COPY_LISTS) as CopyPlatform[]).map((platform) => (
                         <div key={platform} className='space-y-3 rounded bg-neutral-950 p-4'>
                             <div className='flex items-center justify-between'>
-                                <h3 className='text-sm font-medium tracking-wide uppercase'>{platform}</h3>
+                                <h3 className='text-sm font-medium'>{PLATFORM_LABELS[platform]}</h3>
                                 <ReviewControls
                                     review={c.copyReviews[platform]}
                                     onChange={(review) => {
@@ -201,7 +180,7 @@ const ReviewGallery = ({run}: ReviewGalleryProps) => {
                 disabled={pending}
                 className='rounded bg-emerald-600 px-5 py-2 font-medium disabled:opacity-50'
             >
-                {anyRedo ? 'Send redos to agent' : 'Approve all & finalize'}
+                {anyRedo ? 'Send redos, approve the rest' : 'Approve all & finalize'}
             </button>
         </div>
     )

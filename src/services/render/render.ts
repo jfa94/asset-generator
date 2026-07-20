@@ -3,11 +3,10 @@ import {dirname} from 'node:path'
 import puppeteer, {type Browser} from 'puppeteer'
 import sharp from 'sharp'
 import {MAX_IMAGE_BYTES} from '@/domain/formats'
-import {buildHtml} from '@/lib/templates/templates'
-import type {TemplateSpec} from '@/lib/templates/types'
+import {buildHtml, type RenderSpec} from '@/services/render/html'
 
 export interface RenderJob {
-    spec: TemplateSpec
+    render: RenderSpec
     outPath: string
 }
 
@@ -87,22 +86,22 @@ export const verifyPng = async (png: Buffer, width: number, height: number, labe
 }
 
 const renderOne = async (browser: Browser, job: RenderJob): Promise<RenderResult> => {
-    const {spec, outPath} = job
+    const {render, outPath} = job
     const page = await browser.newPage()
     try {
-        await page.setViewport({width: spec.width, height: spec.height})
+        await page.setViewport({width: render.width, height: render.height})
         await page.setRequestInterception(true)
         page.on('request', (req) => {
             void (isBlockedRequestUrl(req.url()) ? req.abort('blockedbyclient') : req.continue())
         })
-        await page.setContent(buildHtml(spec), {waitUntil: 'load'})
+        await page.setContent(buildHtml(render), {waitUntil: 'load'})
         await page.waitForNetworkIdle()
         await page.evaluate('document.fonts.ready')
         const raw = (await page.screenshot({type: 'png'})) as Buffer
-        const png = await verifyPng(raw, spec.width, spec.height, outPath)
+        const png = await verifyPng(raw, render.width, render.height, outPath)
         mkdirSync(dirname(outPath), {recursive: true})
         writeFileSync(outPath, png)
-        return {outPath, width: spec.width, height: spec.height, bytes: png.byteLength}
+        return {outPath, width: render.width, height: render.height, bytes: png.byteLength}
     } finally {
         await page.close()
     }

@@ -70,20 +70,24 @@ operator inline-edits cannot ship invalid copy.
 
 ## Render pipeline
 
+The pipeline runs only at finalize; during review the cockpit previews the same
+lockups live in the browser (see Cockpit UI below).
+
 ```mermaid
 graph LR
     Jobs[jobs.json RenderJobFile array] --> CLI[render CLI loadJobs]
-    CLI -->|inline cssPaths + logoPath| Spec[TemplateSpec]
-    Spec --> Build[buildHtml]
+    CLI -->|inline cssPaths + logoPath + imagePath| Spec[RenderSpec]
+    Spec --> Build[buildHtml renderToStaticMarkup Lockup]
     Build --> Puppeteer[Puppeteer screenshot PNG]
     Puppeteer --> Verify[verifyPng: compress if over cap, assert dimensions]
     Verify --> Out[PNG on disk]
 ```
 
-The CLI reads file references (`cssPaths`, `logoPath`) and inlines them into a
-`TemplateSpec` (CSS text and a data URI). `buildHtml` produces static HTML from
-one of five templates. Puppeteer screenshots it at the exact viewport size; Sharp
-compresses if the PNG exceeds the byte cap and then asserts the output is
+The CLI reads file references (`cssPaths`, `logoPath`, `imagePath`) and inlines
+them into a `RenderSpec` (CSS text and data URIs). `buildHtml` renders one of the
+seven lockups to static markup with `renderToStaticMarkup` and wraps it in a
+self-contained HTML document. Puppeteer screenshots it at the exact viewport size;
+Sharp compresses if the PNG exceeds the byte cap and then asserts the output is
 pixel-exact, throwing otherwise. One shared browser renders all jobs; the first
 failure aborts the batch.
 
@@ -92,13 +96,20 @@ failure aborts the batch.
 Server components read state through the store and render one of three
 interactive surfaces based on `status`:
 
-- **Home** (`page.tsx`) — run list + create form.
+- **Home** (`page.tsx`) — a "How it works" strip, run list, and create form.
 - **Approval form** (`ApprovalForm.tsx`) — editable brief and themes; submitting
   runs `approveBriefAction`.
 - **Review gallery** (`ReviewGallery.tsx`) — a client component holding local
-  campaign state; per-asset approve/redo controls and inline copy editing;
-  submitting runs `submitReviewsAction`.
+  campaign state. Per campaign it shows each creative variant (`CreativeCard`) as
+  a large editable `REPRESENTATIVE` preview plus a live strip of the other
+  formats, and each copy slate. `LockupPreview` mounts the shared `Lockup`
+  component and scales it to fit; `ReviewControls` drives per-variant/per-slate
+  approve/redo. Copy edits are inline (contentEditable on the preview, textareas
+  on the slates). Submitting runs `submitReviewsAction`, which bulk-approves
+  anything left pending.
 
-While the agent works, `AutoRefresh` polls and re-renders so the operator sees
-status changes without manual refresh. Images are served by the `/api/asset`
-route, which reads run-relative files through the store's path-guarded reader.
+While the agent works, `AutoRefresh` (`src/components/AutoRefresh.tsx`) polls and
+re-renders so the operator sees status changes without manual refresh. Run-dir
+files (rendered PNGs, brand CSS, logo, product imagery) are served by the
+`/api/asset` route, which reads them through the store's path-guarded reader and
+sets the content type from `src/utils/mime.ts`.

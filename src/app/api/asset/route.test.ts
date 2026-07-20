@@ -31,11 +31,30 @@ describe('asset GET', () => {
         expect(mockReadAsset).toHaveBeenCalledWith('/runs', '', '')
     })
 
-    it('serves the bytes as image/png', async () => {
+    it('serves the bytes with the extension content type', async () => {
         mockReadAsset.mockResolvedValue(Buffer.from('png-bytes'))
         const res = await GET(req('?run=r1&f=assets/v1.png'))
         expect(res.status).toBe(200)
         expect(res.headers.get('content-type')).toBe('image/png')
         expect(Buffer.from(await res.arrayBuffer()).toString()).toBe('png-bytes')
+    })
+
+    it('sandboxes served files against script execution', async () => {
+        mockReadAsset.mockResolvedValue(Buffer.from('<svg onload="alert(1)"/>'))
+        const res = await GET(req('?run=r1&f=brand/logo.svg'))
+        expect(res.headers.get('content-security-policy')).toBe('sandbox')
+        expect(res.headers.get('x-content-type-options')).toBe('nosniff')
+    })
+
+    it.each([
+        ['brand/logo.svg', 'image/svg+xml'],
+        ['brand/shot.webp', 'image/webp'],
+        ['brand/shot.jpg', 'image/jpeg'],
+        ['brand/brand.css', 'text/css'],
+        ['brand/blob.bin', 'application/octet-stream'],
+    ])('serves %s as %s', async (file, mime) => {
+        mockReadAsset.mockResolvedValue(Buffer.from('bytes'))
+        const res = await GET(req(`?run=r1&f=${encodeURIComponent(file)}`))
+        expect(res.headers.get('content-type')).toBe(mime)
     })
 })

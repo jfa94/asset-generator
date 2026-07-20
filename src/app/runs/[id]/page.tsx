@@ -2,19 +2,13 @@ import Link from 'next/link'
 import {notFound} from 'next/navigation'
 import {approveBriefAction} from '@/app/runs/[id]/actions'
 import ApprovalForm from '@/app/runs/[id]/components/ApprovalForm'
-import AutoRefresh from '@/app/runs/[id]/components/AutoRefresh'
 import ReviewGallery from '@/app/runs/[id]/components/ReviewGallery'
-import {readRun, RUNS_DIR} from '@/lib/state/store'
-import type {RunStatus} from '@/types/run'
+import AutoRefresh from '@/components/AutoRefresh'
+import {STATUS_LABELS} from '@/domain/run'
+import {extractFontCss} from '@/lib/brandkit/fontCss'
+import {readAsset, readRun, RUNS_DIR} from '@/lib/state/store'
 
 export const dynamic = 'force-dynamic'
-
-const WAITING: Partial<Record<RunStatus, string>> = {
-    briefing: 'Agent is inspecting the repo and drafting the brief…',
-    generating: 'Agent is writing copy and rendering images…',
-    regenerating: 'Agent is regenerating the assets you flagged…',
-    finalizing: 'Agent is writing campaign folders to Downloads…',
-}
 
 interface RunPageProps {
     params: Promise<{id: string}>
@@ -26,7 +20,12 @@ const RunPage = async ({params}: RunPageProps) => {
     if (run === null) {
         notFound()
     }
-    const waiting = WAITING[run.status]
+    const status = STATUS_LABELS[run.status]
+
+    const fontCss =
+        run.status === 'reviewing' && run.brand !== undefined
+            ? extractFontCss((await readAsset(RUNS_DIR, run.id, run.brand.cssFile))?.toString('utf8') ?? '')
+            : ''
 
     return (
         <div className='space-y-8'>
@@ -38,13 +37,13 @@ const RunPage = async ({params}: RunPageProps) => {
                     <h1 className='font-mono text-xl'>{run.id}</h1>
                     <p className='text-sm text-neutral-400'>{run.repoPath}</p>
                 </div>
-                <span className='rounded bg-neutral-800 px-3 py-1 text-sm'>{run.status}</span>
+                <span className='rounded bg-neutral-800 px-3 py-1 text-sm'>{status.label}</span>
             </header>
 
-            {waiting !== undefined && (
+            {status.actor === 'agent' && (
                 <div className='flex items-center gap-3 rounded-lg bg-neutral-900 p-6 text-neutral-300'>
                     <span className='inline-block h-3 w-3 animate-pulse rounded-full bg-emerald-500' />
-                    {waiting}
+                    {status.label}
                     <AutoRefresh />
                 </div>
             )}
@@ -53,7 +52,12 @@ const RunPage = async ({params}: RunPageProps) => {
                 <ApprovalForm run={run} action={approveBriefAction.bind(null, run.id)} />
             )}
 
-            {run.status === 'reviewing' && <ReviewGallery run={run} />}
+            {run.status === 'reviewing' && (
+                <>
+                    {fontCss !== '' && <style>{fontCss}</style>}
+                    <ReviewGallery run={run} />
+                </>
+            )}
 
             {run.status === 'complete' && (
                 <div className='rounded-lg bg-neutral-900 p-6'>

@@ -72,29 +72,33 @@ The agent now, for each theme:
 
 - Writes copy slates for Google RSA, Google PMax, and Meta, and validates them
   until they pass every platform limit.
-- Renders three image variants per format with Puppeteer, verifying each is
-  pixel-exact and under the byte cap.
+- Composes three creative variants, each a distinct lockup with palette, copy, and
+  (for image lockups) a product image. No PNGs are rendered yet.
 
 The run page shows a working indicator and switches to the review gallery when the
 status reaches `reviewing`.
 
-## 7. Review the assets
+## 7. Review the creatives
 
-In the gallery you see, per campaign, every rendered image and every copy slate.
-For each asset choose **Approve** or **Redo**. When you choose Redo, add a short
-note describing what should change. You can also edit copy text inline.
+In the gallery you see, per campaign, every creative variant and every copy slate.
+Each creative is previewed live in your browser — a large portrait preview plus a
+strip of the other formats. For each variant and slate choose **Approve** or
+**Redo**. When you choose Redo, add a short note describing what should change. You
+can also edit copy inline: click any text in the large preview and type.
 
-Every asset must have a decision before you can submit.
+You do not have to decide every item — anything you leave alone is approved when
+you submit.
 
 ## 8. Finalize or regenerate
 
 Click the submit button at the bottom:
 
-- If you approved everything, the status becomes `finalizing`. The agent writes
-  the final campaign folders and the status becomes `complete`.
-- If you flagged any redos, the status becomes `regenerating`. The agent
-  regenerates only the flagged assets, honoring your notes, and returns the run to
-  `reviewing`. Repeat step 7 until everything is approved.
+- If you flagged nothing, the status becomes `finalizing`. The agent now renders
+  every approved creative to PNG across all six formats, writes the final campaign
+  folders, and the status becomes `complete`.
+- If you flagged any redos, the status becomes `regenerating`. The agent revises
+  only the flagged items, honoring your notes, and returns the run to `reviewing`.
+  Repeat step 7 until nothing is flagged.
 
 ## 9. Collect the output
 
