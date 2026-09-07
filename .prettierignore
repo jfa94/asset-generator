@@ -1,3 +1,5 @@
 node_modules/
 .claude/
 *.sql
+# factory plugin: generated bundle (esbuild output, not hand-formatted)
+.github/scripts/

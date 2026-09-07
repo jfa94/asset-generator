@@ -1,0 +1,31 @@
+{
+    "version": 1,
+    "stack": "npm",
+    "gates": {
+        "test": {
+            "contracted": true
+        },
+        "tdd": {
+            "contracted": true
+        },
+        "coverage": {
+            "contracted": true
+        },
+        "mutation": {
+            "contracted": true
+        },
+        "sast": {
+            "contracted": false,
+            "reason": "no quality.securityCommand configured"
+        },
+        "type": {
+            "contracted": true
+        },
+        "lint": {
+            "contracted": true
+        },
+        "build": {
+            "contracted": true
+        }
+    }
+}

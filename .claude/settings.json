@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(factory:*)",
+      "Bash(git:*)",
+      "Bash(gh:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Read",
+      "Write",
+      "Edit",
+      "Grep",
+      "Glob",
+      "Agent",
+      "Read(/tmp/factory-asset-generator-canary/data/**)",
+      "Edit(/tmp/factory-asset-generator-canary/data/**)"
+    ]
+  },
+  "worktree": {
+    "baseRef": "head"
+  }
+}

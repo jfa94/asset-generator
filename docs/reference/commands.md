@@ -1,7 +1,8 @@
 # Reference: commands
 
 Package scripts (`package.json`) and helper tools. Package manager: pnpm 11; Node
-≥ 26.
+≥ 26. The package-manager pin is pnpm 11.9.0; 11.13.0 is a broken release
+rejected by pnpm's installer.
 
 ## Application
 
