@@ -1,0 +1,208 @@
+name: Quality Gate
+
+on:
+  pull_request:
+    branches: ["main"]
+
+concurrency:
+  group: quality-${{ github.head_ref }}
+  cancel-in-progress: true
+
+# The factory renders this MANAGED workflow per-repo from the committed gate
+# contract (.factory/gates.json): scaffold replaces the '# factory:*' markers
+# below with the target's package-manager setup and gate steps, so CI runs the
+# same checks the factory's local GateRunner enforces. Drift is measured against
+# the RENDERED output — edit via the plugin template, never in the target repo.
+jobs:
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+            node-version-file: 'package.json'
+            cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: "Use the runner's sandboxed Chrome for render tests"
+        run: "test -x /opt/google/chrome/chrome\nprintf '%s\\n' 'PUPPETEER_EXECUTABLE_PATH=/opt/google/chrome/chrome' >> \"$GITHUB_ENV\""
+      - name: Generate Next.js type declarations
+        run: pnpm next typegen
+      - run: pnpm exec tsc --noEmit
+      - run: pnpm exec eslint .
+      - run: pnpm exec vitest run
+      - run: pnpm run build
+        # Build-time env for CI parity with the factory's local merge gate. Managed by
+        # the factory: `factory scaffold` replaces the marker below with a real `env:`
+        # block rendered from quality.gateEnv (set via `factory configure`). Placeholders
+        # only — real secrets stay in ${{ secrets.* }}. An empty gateEnv leaves the marker.
+        # factory:gate-env
+      - run: pnpm deps:validate
+      - name: pnpm audit (non-blocking; pnpm legacy endpoint 410, Snyk covers vulns)
+        run: pnpm audit --audit-level=high
+        continue-on-error: true
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: quality
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      # NOTE: The semgrep action binary is SHA-pinned, but the rulesets
+      # below (p/typescript, p/security-audit, p/secrets) are fetched
+      # unpinned from the live Semgrep registry at run time. This is an
+      # accepted supply-chain trade-off for now; vendor rules into a
+      # .semgrep/ directory and pin them if this becomes load-bearing.
+      - name: Semgrep SAST
+        uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1
+        with:
+          config: >-
+            p/typescript
+            p/security-audit
+            p/secrets
+      - name: TruffleHog secrets scan
+        uses: trufflesecurity/trufflehog@61d57c10a563ba8a33a4c4205c85b5b3505a050e # main 2026-03-27
+        with:
+          extra_args: --only-verified
+
+  # PR mutation verdict (hunk-scoped 2026-08-07):
+  #   Runs ONLY on PRs targeting develop (the rollup — the merge point it
+  #     actually gates). Task PRs into staging-* skip it: the factory's local
+  #     per-task gate already enforced mutation pre-merge, nothing waits on the
+  #     CI result there (stagingRequiredStatusChecks is empty), and PR-scoped
+  #     caches can't warm anything downstream.
+  #   The managed helper diffs with zero context. Added files mutate in full;
+  #     modified/deletion-seam hunks are padded two lines and merged, so the
+  #     threshold grades code the PR changed instead of every touched file.
+  #   The eight shards run COLD. Replayed incremental results would make
+  #     thresholds.break depend on cache history rather than only this PR.
+  #   The same helper owns diff/full filtering (tests, declarations, type-only
+  #     files, types/data directories, barrels, Next metadata, and quarantine).
+  mutation-scope:
+    name: Mutation Scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: quality
+    outputs:
+      shards: ${{ steps.scope.outputs.shards }}
+      any: ${{ steps.scope.outputs.any }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - name: Compute and shard changed hunks
+        id: scope
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch origin "$BASE_REF" --depth=50
+          shards_json=$(node .github/scripts/shard-mutation-scope.mjs diff "origin/$BASE_REF" 'src')
+          any=$(jq -r 'any(.[]; length > 0)' <<< "$shards_json")
+          echo "any=$any" >> "$GITHUB_OUTPUT"
+          echo "shards=$shards_json" >> "$GITHUB_OUTPUT"
+
+  mutation:
+    name: Mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    needs: mutation-scope
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+    steps:
+      - name: Shard slice
+        id: slice
+        env:
+          SHARDS_JSON: ${{ needs.mutation-scope.outputs.shards }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          slice=$(echo "$SHARDS_JSON" | jq -r --argjson i $((SHARD - 1)) '.[$i]')
+          echo "slice=$slice" >> "$GITHUB_OUTPUT"
+      - name: Skip when no scope
+        if: needs.mutation-scope.outputs.any != 'true' || steps.slice.outputs.slice == ''
+        run: 'echo "Shard ${{ matrix.shard }}: no files; skipping."'
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        if: steps.slice.outputs.slice != ''
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+        if: steps.slice.outputs.slice != ''
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        if: steps.slice.outputs.slice != ''
+        with:
+            node-version-file: 'package.json'
+            cache: pnpm
+      - if: steps.slice.outputs.slice != ''
+        run: pnpm install --frozen-lockfile
+      - name: "Use the runner's sandboxed Chrome for render tests"
+        if: steps.slice.outputs.slice != ''
+        run: "test -x /opt/google/chrome/chrome\nprintf '%s\\n' 'PUPPETEER_EXECUTABLE_PATH=/opt/google/chrome/chrome' >> \"$GITHUB_ENV\""
+      # Deliberately cold: thresholds.break must be a verdict on this PR's
+      # hunk-scoped mutants, independent of prior full-run cache history.
+      - name: Run Stryker on shard ${{ matrix.shard }}
+        if: steps.slice.outputs.slice != ''
+        env:
+          SLICE: ${{ steps.slice.outputs.slice }}
+        run: |
+          pnpm exec stryker run \
+              --mutate "$SLICE" \
+              --concurrency 2
+      - name: Upload shard report
+        if: always() && steps.slice.outputs.slice != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mutation-shard-${{ matrix.shard }}
+          path: reports/mutation/
+          retention-days: 7
+
+  # Aggregator. Branch protection requires a status check named exactly
+  # "Mutation Testing"; the matrix above produces "Mutation (N)" per shard,
+  # which would never satisfy the requirement. This job collapses all shards'
+  # outcomes into a single named check so branch protection stays stable as
+  # shard count or per-shard names change.
+  mutation-testing:
+    name: Mutation Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [mutation-scope, mutation]
+    if: always()
+    steps:
+      - name: Aggregate matrix outcome
+        env:
+          SCOPE_RESULT: ${{ needs.mutation-scope.result }}
+          MUTATION_RESULT: ${{ needs.mutation.result }}
+        run: |
+          echo "mutation-scope: $SCOPE_RESULT"
+          echo "mutation:       $MUTATION_RESULT"
+          # Scope skipped = PR does not target develop (mutation runs on the
+          # rollup only); the aggregator reports green so the universal check
+          # name stays satisfiable everywhere.
+          if [[ "$SCOPE_RESULT" == "skipped" ]]; then
+            echo "Mutation testing skipped (PR does not target develop)."
+            exit 0
+          fi
+          if [[ "$SCOPE_RESULT" != "success" ]]; then
+            echo "::error::mutation-scope did not succeed"
+            exit 1
+          fi
+          # Exempt cancelled (force-push supersession) and skipped (no mutable
+          # source files in this PR — e.g. docs-only or tests-only changes).
+          if [[ "$MUTATION_RESULT" != "success" && "$MUTATION_RESULT" != "cancelled" && "$MUTATION_RESULT" != "skipped" ]]; then
+            echo "::error::one or more mutation shards did not succeed"
+            exit 1
+          fi
+          echo "All mutation jobs succeeded."
+
+  # No e2e job here by design (Decision 40): CI cannot boot the app (no seed DB,
+  # no auth, no live services), so a gating e2e job would brick merging on
+  # infrastructure CI can't provide. The run-level e2e phase is the e2e gate.
+
+  # No CI-side merge job by design (Decision 53): the factory engine owns both
+  # merge points — task PRs via the MergeSerializer, the rollup PR via finalize's
+  # CI poll — so a CI-side merge step would only race it.

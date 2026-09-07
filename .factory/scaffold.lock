@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "seeds": {
+    "e2e/example.spec.ts": "354704dc9f54a68f5340903e8d869ba4e9b505f304d71a3fe2bcf3322390818f",
+    "playwright.config.ts": "4527a30f11b2e404d68742c658f2a60092c7b982135ec8d9e442c97414576d61"
+  },
+  "managed": {
+    ".github/scripts/shard-mutation-scope.mjs": "188a80ab286ca12541e64ab6f4dd10e5286b0668f361f89508528e65037ea6f1",
+    ".github/scripts/shard-mutation-scope.node-test.mjs": "22abde7022315fc091e53c6024d85eb9becb45a04b04895b4fc73e0dcc81d642",
+    ".github/workflows/mutation-nightly.yml": "b5f2893243c28fe859be89d588238c7cd29890127cea3dafc665c6d2262abd8a",
+    ".github/workflows/quality-gate.yml": "824ee3df9faeb444849383070327923415f5debe2b1b52f17bcf7181d010cd99"
+  }
+}

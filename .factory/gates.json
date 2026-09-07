@@ -1,0 +1,37 @@
+{
+    "version": 1,
+    "stack": "npm",
+    "setup_steps": [
+        {
+            "name": "Use the runner's sandboxed Chrome for render tests",
+            "run": "test -x /opt/google/chrome/chrome\nprintf '%s\\n' 'PUPPETEER_EXECUTABLE_PATH=/opt/google/chrome/chrome' >> \"$GITHUB_ENV\""
+        }
+    ],
+    "gates": {
+        "test": {
+            "contracted": true
+        },
+        "tdd": {
+            "contracted": true
+        },
+        "coverage": {
+            "contracted": true
+        },
+        "mutation": {
+            "contracted": true
+        },
+        "sast": {
+            "contracted": false,
+            "reason": "no quality.securityCommand configured"
+        },
+        "type": {
+            "contracted": true
+        },
+        "lint": {
+            "contracted": true
+        },
+        "build": {
+            "contracted": true
+        }
+    }
+}

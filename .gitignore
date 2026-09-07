@@ -401,3 +401,7 @@ supabase/.temp/
 
 # run state (UI<->agent working files) — anchored so it doesn't also ignore src/app/runs/
 /runs/
+# Claude Code local state (factory scaffold guarantee)
+.claude/workflows/
+# factory plugin state
+*.worktree
