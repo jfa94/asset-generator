@@ -274,17 +274,26 @@ describe('validateCopy runtime contract [copy-001]', () => {
         expect(validateUnknown({platform, copy})).toEqual({platform, valid: true, issues: []})
     })
 
-    it.each([null, [], 'rsa', 7, false, undefined])('rejects malformed root %j', (input) => {
-        expectShapeError(input, /input|object|root/i)
-    })
+    it.each([null, [], 'rsa', 7, false, undefined].map((input) => ({input})))(
+        'rejects malformed root $input',
+        ({input}) => {
+            expectShapeError(input, /input|object|root/i)
+        }
+    )
 
-    it.each([undefined, null, [], 'copy', 7, false])('rejects malformed copy %j', (copy) => {
-        expectShapeError({platform: 'rsa', copy}, 'copy')
-    })
+    it.each([undefined, null, [], 'copy', 7, false].map((copy) => ({copy})))(
+        'rejects malformed copy $copy',
+        ({copy}) => {
+            expectShapeError({platform: 'rsa', copy}, 'copy')
+        }
+    )
 
-    it.each([undefined, null, [], {}, 'RSA', 'unknown', '', 7])('rejects unsupported platform %j', (platform) => {
-        expectShapeError({platform, copy: validRsa}, 'platform')
-    })
+    it.each([undefined, null, [], {}, 'RSA', 'unknown', '', 7].map((platform) => ({platform})))(
+        'rejects unsupported platform $platform',
+        ({platform}) => {
+            expectShapeError({platform, copy: validRsa}, 'platform')
+        }
+    )
 
     for (const {platform, copy} of dispatchFixtures) {
         for (const [field, value] of Object.entries(copy)) {
@@ -296,9 +305,12 @@ describe('validateCopy runtime contract [copy-001]', () => {
             const malformed = Array.isArray(value)
                 ? [null, {}, 'text', 1, [1], ['ok', null], [false]]
                 : [null, [], {}, 1, false]
-            it.each(malformed)(`${platform} rejects malformed ${field}: %j`, (badValue) => {
-                expectShapeError({platform, copy: {...copy, [field]: badValue}}, field)
-            })
+            it.each(malformed.map((badValue) => ({badValue})))(
+                `${platform} rejects malformed ${field}: $badValue`,
+                ({badValue}) => {
+                    expectShapeError({platform, copy: {...copy, [field]: badValue}}, field)
+                }
+            )
 
             if (Array.isArray(value)) {
                 it(`${platform} accepts an empty ${field} list as platform input`, () => {
