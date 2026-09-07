@@ -7,7 +7,7 @@
   "managed": {
     ".github/scripts/shard-mutation-scope.mjs": "188a80ab286ca12541e64ab6f4dd10e5286b0668f361f89508528e65037ea6f1",
     ".github/scripts/shard-mutation-scope.node-test.mjs": "22abde7022315fc091e53c6024d85eb9becb45a04b04895b4fc73e0dcc81d642",
-    ".github/workflows/mutation-nightly.yml": "550111628f0b9abcf39a2e14c79030de9d0505bf5938629d5f5be7d051af4b7e",
-    ".github/workflows/quality-gate.yml": "4d8264d6180fc17fa5953ce30bf99a2c4f5da025e7bd51029dc75367d2160411"
+    ".github/workflows/mutation-nightly.yml": "b5f2893243c28fe859be89d588238c7cd29890127cea3dafc665c6d2262abd8a",
+    ".github/workflows/quality-gate.yml": "824ee3df9faeb444849383070327923415f5debe2b1b52f17bcf7181d010cd99"
   }
 }

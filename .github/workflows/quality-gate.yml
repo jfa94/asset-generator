@@ -26,6 +26,8 @@ jobs:
             node-version-file: 'package.json'
             cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: "Use the runner's sandboxed Chrome for render tests"
+        run: "test -x /opt/google/chrome/chrome\nprintf '%s\\n' 'PUPPETEER_EXECUTABLE_PATH=/opt/google/chrome/chrome' >> \"$GITHUB_ENV\""
       - name: Generate Next.js type declarations
         run: pnpm next typegen
       - run: pnpm exec tsc --noEmit
@@ -138,6 +140,9 @@ jobs:
             cache: pnpm
       - if: steps.slice.outputs.slice != ''
         run: pnpm install --frozen-lockfile
+      - name: "Use the runner's sandboxed Chrome for render tests"
+        if: steps.slice.outputs.slice != ''
+        run: "test -x /opt/google/chrome/chrome\nprintf '%s\\n' 'PUPPETEER_EXECUTABLE_PATH=/opt/google/chrome/chrome' >> \"$GITHUB_ENV\""
       # Deliberately cold: thresholds.break must be a verdict on this PR's
       # hunk-scoped mutants, independent of prior full-run cache history.
       - name: Run Stryker on shard ${{ matrix.shard }}

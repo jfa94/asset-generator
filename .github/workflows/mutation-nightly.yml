@@ -71,6 +71,9 @@ jobs:
             cache: pnpm
       - if: steps.slice.outputs.slice != ''
         run: pnpm install --frozen-lockfile
+      - name: "Use the runner's sandboxed Chrome for render tests"
+        if: steps.slice.outputs.slice != ''
+        run: "test -x /opt/google/chrome/chrome\nprintf '%s\\n' 'PUPPETEER_EXECUTABLE_PATH=/opt/google/chrome/chrome' >> \"$GITHUB_ENV\""
       - name: Restore Stryker incremental cache (shard ${{ matrix.shard }})
         if: steps.slice.outputs.slice != ''
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5

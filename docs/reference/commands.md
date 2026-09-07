@@ -4,6 +4,13 @@ Package scripts (`package.json`) and helper tools. Package manager: pnpm 11; Nod
 ≥ 26. The package-manager pin is pnpm 11.9.0; 11.13.0 is a broken release
 rejected by pnpm's installer.
 
+CI's gate contract selects the Ubuntu runner's installed Chrome for Puppeteer
+render tests, including mutation jobs. Its AppArmor profile permits Chromium's
+sandbox; the downloaded Chrome-for-Testing executable is blocked on this runner.
+The setup step fails if installed Chrome is absent. Local runs keep Puppeteer's
+default browser. See [Chromium's AppArmor guidance](https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md)
+and [Puppeteer's executable-path setting](https://pptr.dev/api/puppeteer.configuration).
+
 ## Application
 
 | Command                   | Description                                                       |
