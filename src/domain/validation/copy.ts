@@ -10,6 +10,76 @@ export interface CopyIssue {
     message: string
 }
 
+export interface CopyValidationResult {
+    platform: 'rsa' | 'pmax' | 'meta'
+    valid: boolean
+    issues: CopyIssue[]
+}
+
+export class CopyShapeError extends Error {
+    override name = 'CopyShapeError'
+}
+
+function requireObject(value: unknown, field: string): Record<string, unknown> {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+        throw new CopyShapeError(`${field} must be an object`)
+    }
+    return value as Record<string, unknown>
+}
+
+function requireString(value: unknown, field: string): string {
+    if (typeof value !== 'string') {
+        throw new CopyShapeError(`${field} must be a string`)
+    }
+    return value
+}
+
+function requireStrings(value: unknown, field: string): string[] {
+    if (!Array.isArray(value)) {
+        throw new CopyShapeError(`${field} must be an array of strings`)
+    }
+    const strings: string[] = []
+    for (const item of value as unknown[]) {
+        strings.push(requireString(item, `${field}[${String(strings.length)}]`))
+    }
+    return strings
+}
+
+/** Reject malformed input before applying the existing platform copy rules. */
+export function validateCopy(input: unknown): CopyValidationResult {
+    const root = requireObject(input, 'input')
+    const platform = root['platform']
+    if (platform !== 'rsa' && platform !== 'pmax' && platform !== 'meta') {
+        throw new CopyShapeError('platform must be rsa, pmax or meta')
+    }
+    const copy = requireObject(root['copy'], 'copy')
+    let issues: CopyIssue[]
+    switch (platform) {
+        case 'rsa':
+            issues = validateRsa({
+                headlines: requireStrings(copy['headlines'], 'copy.headlines'),
+                descriptions: requireStrings(copy['descriptions'], 'copy.descriptions'),
+                paths: requireStrings(copy['paths'], 'copy.paths'),
+            })
+            break
+        case 'pmax':
+            issues = validatePmax({
+                shortHeadlines: requireStrings(copy['shortHeadlines'], 'copy.shortHeadlines'),
+                longHeadlines: requireStrings(copy['longHeadlines'], 'copy.longHeadlines'),
+                descriptions: requireStrings(copy['descriptions'], 'copy.descriptions'),
+                businessName: requireString(copy['businessName'], 'copy.businessName'),
+            })
+            break
+        case 'meta':
+            issues = validateMeta({
+                primaryTexts: requireStrings(copy['primaryTexts'], 'copy.primaryTexts'),
+                headlines: requireStrings(copy['headlines'], 'copy.headlines'),
+                descriptions: requireStrings(copy['descriptions'], 'copy.descriptions'),
+            })
+    }
+    return {platform, valid: issues.length === 0, issues}
+}
+
 const segmenter = new Intl.Segmenter()
 
 /** Platform limits count characters (graphemes), not UTF-16 units. */
