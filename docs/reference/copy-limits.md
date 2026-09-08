@@ -46,6 +46,17 @@ For example, Meta input with `primaryTexts: []` and otherwise valid fields retur
 `{platform: 'meta', valid: false, issues: [{field: 'primaryTexts', message: 'needs 1-5 entries, got 0'}]}`.
 Existing typed validators remain available with their original issue results and limits.
 
+## Validate a saved file
+
+Use `pnpm validate-copy <file.json>` to validate any of the three input shapes
+above, or `pnpm --silent validate-copy <file.json>` for machine-readable package
+script output. See [command examples and exit codes](commands.md#validate-saved-copy)
+for complete RSA, PMax and Meta JSON inputs and valid/invalid output examples.
+The command emits the same result plus a newline: exit `0` for valid copy,
+`1` for platform issues, or `2` for usage, read, JSON or shape errors. Exit `2`
+has empty stdout and a concise stderr diagnostic without a stack trace. Input
+files are never changed.
+
 ## Character counting
 
 Character counts use Unicode grapheme segmentation (`Intl.Segmenter`), not UTF-16
