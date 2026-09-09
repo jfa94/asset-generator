@@ -118,10 +118,13 @@ block prefixed with the campaign slug and platform, e.g.
 
 ## Exported helpers
 
-| Symbol                 | Purpose                                                    |
-| ---------------------- | ---------------------------------------------------------- |
-| `charCount(s)`         | Grapheme-aware character count.                            |
-| `isNearDuplicate(a,b)` | Whether two strings are near-duplicates by the rule above. |
-| `validateRsa(copy)`    | Validate an `RsaCopy`.                                     |
-| `validatePmax(copy)`   | Validate a `PmaxCopy`.                                     |
-| `validateMeta(copy)`   | Validate a `MetaCopy`.                                     |
+| Symbol                 | Purpose                                                             |
+| ---------------------- | ------------------------------------------------------------------- |
+| `charCount(s)`         | Grapheme-aware character count.                                     |
+| `isNearDuplicate(a,b)` | Whether two strings are near-duplicates by the rule above.          |
+| `validateRsa(copy)`    | Validate an `RsaCopy`.                                              |
+| `validatePmax(copy)`   | Validate a `PmaxCopy`.                                              |
+| `validateMeta(copy)`   | Validate a `MetaCopy`.                                              |
+| `validateCopy(input)`  | Check unknown input shape and return platform, validity and issues. |
+| `CopyShapeError`       | Distinguishable error for malformed input.                          |
+| `CopyValidationResult` | Type of the shared platform/valid/issues result.                    |

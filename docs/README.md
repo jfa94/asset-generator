@@ -1,4 +1,4 @@
-<!-- last-documented: c8385231bd8bed21d02efa1b13c090d826b532a4 -->
+<!-- last-documented: 9125d3e31d87f65713d2d4015a208e26c1170e65 -->
 
 # Asset Generator
 
@@ -60,6 +60,11 @@ APIs.
   back to the extracted brand kit; brand voice overrides generic ad best practice.
 
 ## Documentation
+
+Saved RSA, PMax and Meta copy can also be validated independently of a run with
+`pnpm validate-copy <file.json>`. See the [command reference](reference/commands.md#validate-saved-copy)
+for JSON input, output and exit codes, and the [copy reference](reference/copy-limits.md#validate-unknown-input)
+for the reusable validation interface.
 
 | Area                                                                           | Contents                                                   |
 | ------------------------------------------------------------------------------ | ---------------------------------------------------------- |
