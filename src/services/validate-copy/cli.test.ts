@@ -263,6 +263,8 @@ describe('silent package script', () => {
 
             const result = spawnSync('pnpm', ['--silent', 'validate-copy', path], {
                 cwd: projectRoot,
+                // Stryker links installed dependencies; package tests must not reinstall that shared tree.
+                env: {...process.env, pnpm_config_verify_deps_before_run: 'false'},
                 encoding: 'utf8',
                 timeout: 15000,
             })
