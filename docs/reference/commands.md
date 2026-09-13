@@ -28,8 +28,9 @@ pnpm validate-copy "campaign copy.json"
 pnpm --silent validate-copy "campaign copy.json"
 ```
 
-The command reads exactly one UTF-8 JSON file, relative to the caller's working
-directory. It writes no files and does not change campaigns or runs. Missing or
+The command reads exactly one UTF-8 JSON file, resolved relative to the package
+root (pnpm pins script `cwd` there, not the invoking shell's working directory).
+It writes no files and does not change campaigns or runs. Missing or
 extra arguments and unsupported options are usage errors. For filenames beginning
 with `-`, use a relative path such as `./-copy.json`.
 
