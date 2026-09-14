@@ -6,7 +6,8 @@ import {tmpdir} from 'node:os'
 import {join, resolve} from 'node:path'
 import {pathToFileURL} from 'node:url'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
-import {validateCopy} from '@/domain/validation/copy'
+import {validateCopy, type CopyIssue} from '@/domain/validation/copy'
+import {validateCopyBatch} from '@/domain/validation/batch'
 
 interface CommandResult {
     code: number | null | undefined
@@ -280,4 +281,158 @@ describe('silent package script', () => {
         },
         20000
     )
+})
+
+// --- batch-003: pnpm validate-copy --batch <file.json>, exit codes 0 and 1 ---
+
+interface BatchEntryPayload {
+    id: string
+    platform: string
+    valid: boolean
+    issues: CopyIssue[]
+}
+
+interface BatchPayload {
+    valid: boolean
+    results: BatchEntryPayload[]
+}
+
+const batchRsaCopy = {
+    headlines: ['Stop paying for privacy', 'Delete your data for good', 'One purchase, zero renewals'],
+    descriptions: [
+        'Remove your personal data from broker sites with a single one-time purchase.',
+        'No subscriptions, no surprises. Own your privacy tooling outright.',
+    ],
+    paths: ['privacy', 'pricing'],
+}
+
+const batchPmaxCopy = {
+    shortHeadlines: ['Own your privacy', 'No renewals, ever', 'Data brokers, gone'],
+    longHeadlines: ['Remove your data from broker sites with one purchase'],
+    descriptions: [
+        'One-time purchase, lifetime privacy. No subscription required.',
+        'We file the removals so you never have to think about it.',
+    ],
+    businessName: 'GoodbyeSpy',
+}
+
+const batchMetaCopy = {
+    primaryTexts: ['Take your name off the data-broker lists for good.'],
+    headlines: ['Own your privacy'],
+    descriptions: ['Own it outright'],
+}
+
+const rsaBatchEntry = {id: 'rsa-one', platform: 'rsa', copy: batchRsaCopy}
+const pmaxBatchEntry = {id: 'pmax-two', platform: 'pmax', copy: batchPmaxCopy}
+const metaBatchEntry = {id: 'meta-three', platform: 'meta', copy: batchMetaCopy}
+
+const allValidBatch = {entries: [rsaBatchEntry, pmaxBatchEntry, metaBatchEntry]}
+const allValidPayload: BatchPayload = {
+    valid: true,
+    results: [
+        {id: 'rsa-one', platform: 'rsa', valid: true, issues: []},
+        {id: 'pmax-two', platform: 'pmax', valid: true, issues: []},
+        {id: 'meta-three', platform: 'meta', valid: true, issues: []},
+    ],
+}
+
+// Index 0 breaks two rsa count rules, index 2 breaks one meta count rule, index 1 is valid:
+// a rule violation must never abort the pass and every issue of every entry must be reported.
+const twoIssueRsaCopy = {...batchRsaCopy, headlines: [], descriptions: []}
+const oneIssueMetaCopy = {...batchMetaCopy, primaryTexts: []}
+const mixedBatch = {
+    entries: [
+        {id: 'zebra', platform: 'rsa', copy: twoIssueRsaCopy},
+        {id: 'alpha', platform: 'pmax', copy: batchPmaxCopy},
+        {id: 'middle', platform: 'meta', copy: oneIssueMetaCopy},
+    ],
+}
+const mixedPayload: BatchPayload = {
+    valid: false,
+    results: [
+        {
+            id: 'zebra',
+            platform: 'rsa',
+            valid: false,
+            issues: validateCopy({platform: 'rsa', copy: twoIssueRsaCopy}).issues,
+        },
+        {id: 'alpha', platform: 'pmax', valid: true, issues: []},
+        {
+            id: 'middle',
+            platform: 'meta',
+            valid: false,
+            issues: validateCopy({platform: 'meta', copy: oneIssueMetaCopy}).issues,
+        },
+    ],
+}
+
+function saveBatch(batch: unknown): string {
+    const path = join(fixtureDirectory, 'campaign batch.json')
+    writeFileSync(path, JSON.stringify(batch), 'utf8')
+    return path
+}
+
+function parseBatchPayload(stdout: string): BatchPayload {
+    return JSON.parse(stdout) as BatchPayload
+}
+
+describe.each([
+    {name: 'in-process adapter', run: runAdapter},
+    {name: 'actual Node/tsx entry point', run: runNode},
+])('$name --batch mode [batch-003]', ({run}) => {
+    it('writes exactly one newline-terminated compact JSON line and nothing to stderr', async () => {
+        const result = await run(['--batch', saveBatch(allValidBatch)])
+        expect(result.stderr).toBe('')
+        expect(result.stdout.split('\n')).toEqual([JSON.stringify(allValidPayload), ''])
+    })
+
+    it('exits 0 with overall valid true for an all-valid mixed-platform batch', async () => {
+        const result = await run(['--batch', saveBatch(allValidBatch)])
+        expect(result).toEqual({code: 0, stdout: `${JSON.stringify(allValidPayload)}\n`, stderr: ''})
+        expect(parseBatchPayload(result.stdout).valid).toBe(true)
+    })
+
+    it('exits 1 and reports every entry in input order with all of its issues', async () => {
+        const result = await run(['--batch', saveBatch(mixedBatch)])
+        expect(result).toEqual({code: 1, stdout: `${JSON.stringify(mixedPayload)}\n`, stderr: ''})
+        const printed = parseBatchPayload(result.stdout)
+        expect(printed.results.map((entry) => entry.id)).toEqual(['zebra', 'alpha', 'middle'])
+        expect(printed.results.map((entry) => entry.valid)).toEqual([false, true, false])
+        expect(printed.results.map((entry) => entry.issues.length)).toEqual([2, 0, 1])
+        expect(printed.results[0]?.issues.map((issue) => issue.field)).toEqual(['headlines', 'descriptions'])
+        expect(printed.results[2]?.issues).toEqual([{field: 'primaryTexts', message: 'needs 1-5 entries, got 0'}])
+        expect(printed.valid).toBe(false)
+    })
+
+    it('prints exactly validateCopyBatch of the parsed file, without reordering or reformatting', async () => {
+        const path = saveBatch(mixedBatch)
+        const parsedFile = JSON.parse(readFileSync(path, 'utf8')) as unknown
+        const result = await run(['--batch', path])
+        expect(result.code).toBe(1)
+        expect(result.stdout).toBe(`${JSON.stringify(validateCopyBatch(parsedFile))}\n`)
+        expect(parseBatchPayload(result.stdout)).toEqual(validateCopyBatch(parsedFile))
+    })
+
+    it('accepts rsa, pmax and meta entries in a single --batch invocation and exits 0', async () => {
+        const batch = {entries: [metaBatchEntry, rsaBatchEntry, pmaxBatchEntry]}
+        const expected: BatchPayload = {
+            valid: true,
+            results: [
+                {id: 'meta-three', platform: 'meta', valid: true, issues: []},
+                {id: 'rsa-one', platform: 'rsa', valid: true, issues: []},
+                {id: 'pmax-two', platform: 'pmax', valid: true, issues: []},
+            ],
+        }
+        const result = await run(['--batch', saveBatch(batch)])
+        expect(result).toEqual({code: 0, stdout: `${JSON.stringify(expected)}\n`, stderr: ''})
+        expect(parseBatchPayload(result.stdout).results.map((entry) => entry.platform)).toEqual(['meta', 'rsa', 'pmax'])
+    })
+})
+
+it('gives identical batch output through the in-process adapter and the actual Node/tsx entry point', async () => {
+    const path = saveBatch(mixedBatch)
+    const adapter = await runAdapter(['--batch', path])
+    const entryPoint = runNode(['--batch', path])
+    expect(adapter).toEqual({code: 1, stdout: `${JSON.stringify(mixedPayload)}\n`, stderr: ''})
+    expect(entryPoint).toEqual(adapter)
 })
