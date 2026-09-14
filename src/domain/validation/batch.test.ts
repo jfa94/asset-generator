@@ -123,8 +123,7 @@ describe('parseCopyBatch root shape [batch-001]', () => {
         const parse = await loadParseCopyBatch()
         expect(() => parse({entries: []})).toThrow(CopyShapeError)
         const message = batchShapeMessage(parse, {entries: []})
-        expect(message).toContain('entries')
-        expect(message).not.toContain('entries[')
+        expect(message).toBe('entries must have at least one entry')
     })
 })
 
