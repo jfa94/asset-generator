@@ -157,9 +157,19 @@ describe('parseCopyBatch identifiers [batch-001]', () => {
         }
         expect(() => parse(input)).toThrow(CopyShapeError)
         const message = batchShapeMessage(parse, input)
-        expect(message).toContain('entries[2]')
-        expect(message).not.toContain('entries[0]')
-        expect(message).toMatch(/id/i)
+        expect(message).toBe('entries[2].id is a duplicate identifier')
+    })
+
+    it('treats ids differing only by letter case as distinct and echoes them verbatim', async () => {
+        const parse = await loadParseCopyBatch()
+        const parsed = parse({
+            entries: [
+                {id: 'Alpha', platform: 'rsa', copy: validRsaCopy},
+                {id: 'alpha', platform: 'meta', copy: validMetaCopy},
+            ],
+        })
+        expect(parsed).toHaveLength(2)
+        expect(parsed.map((entry) => entry.id)).toEqual(['Alpha', 'alpha'])
     })
 
     it('treats ids differing only by surrounding whitespace as distinct and echoes them verbatim', async () => {
