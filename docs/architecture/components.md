@@ -64,9 +64,17 @@ units, so emoji and combined characters count the way the platforms count them.
 RSA and PMax short headlines are additionally checked for near-duplicates using
 Jaccard word overlap, because ad platforms discard near-duplicate headlines.
 
-Validation is invoked in two places: by the agent before it saves copy, and by the
+Validation is invoked by the agent before it saves copy, and by the
 UI's `submitReviewsAction` as a gate before leaving the review phase — so
 operator inline-edits cannot ship invalid copy.
+
+The standalone `validate-copy` command reads saved JSON and calls the domain's
+`validateCopy` entry point. This entry point checks unknown input at runtime,
+then delegates to the same platform validators. Shape errors are distinct from
+ordinary platform issues. The service owns file reads, JSON parsing, output and
+exit codes; the domain remains pure, and validation does not modify run state.
+See the [copy reference](../reference/copy-limits.md) and
+[command reference](../reference/commands.md#validate-saved-copy) for the contracts.
 
 ## Render pipeline
 

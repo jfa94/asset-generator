@@ -23,6 +23,7 @@
         "audit": "pnpm audit --prod --audit-level=high",
         "quality": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test:coverage && pnpm deps:validate && pnpm run audit && pnpm test:mutation",
         "render": "tsx src/services/render/cli.ts",
+        "validate-copy": "tsx src/services/validate-copy/cli.ts",
         "dev": "next dev",
         "build": "next build",
         "start": "next start"

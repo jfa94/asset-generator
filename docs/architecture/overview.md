@@ -76,6 +76,7 @@ graph TD
     subgraph Services[Services]
         Render[Puppeteer + Sharp renderer]
         RenderCLI[render CLI]
+        CopyCLI[validate-copy CLI]
     end
     Skill[new-run agent skill]
     Wait[wait-for.mjs]
@@ -87,6 +88,7 @@ graph TD
     Actions --> CopyVal
     AssetAPI --> Store
     RenderCLI --> Render
+    CopyCLI --> CopyVal
     Render -->|renderToStaticMarkup| Lockups
     Render --> Formats
     Skill --> Store
@@ -138,6 +140,13 @@ Turns a `RenderSpec` into a verified PNG at finalize using Puppeteer (headless
 Chrome screenshot of the lockup rendered via `renderToStaticMarkup`) and Sharp
 (compression + pixel-exact dimension check). The `render` CLI loads a `jobs.json`
 of flat `RenderJobFile` entries, inlining CSS, logo, and image file references.
+
+### Saved-copy validation (`src/services/validate-copy/`)
+
+The `validate-copy` CLI reads one JSON file and delegates runtime shape checks
+and platform rules to the domain's `validateCopy` entry point. It returns a JSON
+result or a concise error with an exit code, without changing files or run state.
+See [command reference](../reference/commands.md#validate-saved-copy).
 
 ### Agent skill (`.claude/skills/new-run/SKILL.md`)
 

@@ -1,5 +1,6 @@
 import fc from 'fast-check'
 import {describe, expect, it} from 'vitest'
+import * as copyModule from '@/domain/validation/copy'
 import {
     charCount,
     isNearDuplicate,
@@ -222,6 +223,193 @@ describe('properties', () => {
         fc.assert(
             fc.property(fc.string({minLength: 1, maxLength: 40}), (s) => {
                 return isNearDuplicate(s, s)
+            })
+        )
+    })
+})
+
+// A namespace boundary keeps RED executable before the new exports exist.
+// The public signature comes from copy-001, not from implementation details.
+const copyApi = copyModule as unknown as {
+    validateCopy: (input: unknown) => {platform: string; valid: boolean; issues: {field: string; message: string}[]}
+    CopyShapeError: new (message: string) => Error
+}
+
+function validateUnknown(input: unknown) {
+    let result: ReturnType<typeof copyApi.validateCopy> | undefined
+    expect(() => {
+        result = copyApi.validateCopy(input)
+    }).not.toThrow()
+    return result
+}
+
+const dispatchFixtures = [
+    {platform: 'rsa', copy: {...validRsa, paths: []}},
+    {
+        platform: 'pmax',
+        copy: {
+            shortHeadlines: ['Own your privacy', 'No renewals, ever', 'Data brokers, gone'],
+            longHeadlines: ['Remove your data from broker sites with one purchase'],
+            descriptions: ['One-time purchase, lifetime privacy.', 'We file the removals for you.'],
+            businessName: 'GoodbyeSpy',
+        },
+    },
+    {
+        platform: 'meta',
+        copy: {
+            primaryTexts: ['Keep your data private.'],
+            headlines: ['Own your privacy'],
+            descriptions: ['One purchase'],
+        },
+    },
+]
+
+function expectShapeError(input: unknown, field: string | RegExp) {
+    expect(() => copyApi.validateCopy(input)).toThrow(expect.objectContaining({constructor: copyApi.CopyShapeError}))
+    expect(() => copyApi.validateCopy(input)).toThrow(field)
+}
+
+describe('validateCopy runtime contract [copy-001]', () => {
+    it.each(dispatchFixtures)('returns the exact successful result for $platform', ({platform, copy}) => {
+        expect(validateUnknown({platform, copy})).toEqual({platform, valid: true, issues: []})
+    })
+
+    it.each([null, [], 'rsa', 7, false, undefined].map((input) => ({input})))(
+        'rejects malformed root $input',
+        ({input}) => {
+            expectShapeError(input, /input|object|root/i)
+        }
+    )
+
+    it.each([undefined, null, [], 'copy', 7, false].map((copy) => ({copy})))(
+        'rejects malformed copy $copy',
+        ({copy}) => {
+            expectShapeError({platform: 'rsa', copy}, 'copy')
+        }
+    )
+
+    it.each([undefined, null, [], {}, 'RSA', 'unknown', '', 7].map((platform) => ({platform})))(
+        'rejects unsupported platform $platform',
+        ({platform}) => {
+            expectShapeError({platform, copy: validRsa}, 'platform')
+        }
+    )
+
+    for (const {platform, copy} of dispatchFixtures) {
+        for (const [field, value] of Object.entries(copy)) {
+            it(`${platform} rejects missing ${field}`, () => {
+                const incomplete = Object.fromEntries(Object.entries(copy).filter(([key]) => key !== field))
+                expectShapeError({platform, copy: incomplete}, field)
+            })
+
+            const malformed = Array.isArray(value)
+                ? [null, {}, 'text', 1, [1], ['ok', null], [false]]
+                : [null, [], {}, 1, false]
+            it.each(malformed.map((badValue) => ({badValue})))(
+                `${platform} rejects malformed ${field}: $badValue`,
+                ({badValue}) => {
+                    expectShapeError({platform, copy: {...copy, [field]: badValue}}, field)
+                }
+            )
+
+            if (Array.isArray(value)) {
+                it(`${platform} accepts an empty ${field} list as platform input`, () => {
+                    const result = validateUnknown({platform, copy: {...copy, [field]: []}})
+                    if (field === 'paths') {
+                        expect(result).toEqual({platform, valid: true, issues: []})
+                    } else {
+                        expect(result?.platform).toBe(platform)
+                        expect(result?.valid).toBe(false)
+                        expect(result?.issues).toHaveLength(1)
+                        expect(result?.issues[0]?.field).toBe(field)
+                        expect(result?.issues[0]?.message).toMatch(/needs .* got 0/)
+                    }
+                })
+            }
+
+            it.each(['', '   '])(`${platform} treats blank ${field} entries as ordinary issues: %j`, (blank) => {
+                const blankValue = Array.isArray(value) ? [blank, ...value.slice(1)] : blank
+                const result = validateUnknown({platform, copy: {...copy, [field]: blankValue}})
+                expect(result?.valid).toBe(false)
+                expect(
+                    result?.issues.some(
+                        (issue) =>
+                            issue.message === 'is empty' &&
+                            (issue.field === `${field}[0]` || (!Array.isArray(value) && issue.field === field))
+                    )
+                ).toBe(true)
+            })
+        }
+
+        it(`${platform} ignores extras and preserves deeply frozen input deterministically`, () => {
+            const frozenCopy = Object.freeze(
+                Object.fromEntries(
+                    Object.entries(copy).map(([key, value]) => [
+                        key,
+                        Array.isArray(value) ? Object.freeze([...value]) : value,
+                    ])
+                )
+            )
+            const input = Object.freeze({platform, copy: frozenCopy, extra: Object.freeze({ignored: true})})
+            const before = JSON.stringify(input)
+            const first = validateUnknown(input)
+            expect(first).toEqual({platform, valid: true, issues: []})
+            expect(JSON.stringify(validateUnknown(input))).toBe(JSON.stringify(first))
+            expect(JSON.stringify(input)).toBe(before)
+            expect(validateUnknown({platform, copy: {...copy, ignored: 42}})).toEqual(first)
+        })
+    }
+
+    it('does not mutate frozen malformed input', () => {
+        const input = Object.freeze({platform: 'rsa', copy: Object.freeze({headlines: Object.freeze(['hello', 1])})})
+        const before = JSON.stringify(input)
+        expectShapeError(input, /headlines|descriptions|paths/)
+        expect(JSON.stringify(input)).toBe(before)
+    })
+
+    it('preserves exact ordered issues from each existing validator', () => {
+        const rsa = {headlines: [], descriptions: [], paths: []}
+        const pmax = {shortHeadlines: [], longHeadlines: [], descriptions: [], businessName: ''}
+        const meta = {primaryTexts: [], headlines: [], descriptions: []}
+        for (const {platform, copy, issues} of [
+            {platform: 'rsa', copy: rsa, issues: validateRsa(rsa)},
+            {platform: 'pmax', copy: pmax, issues: validatePmax(pmax)},
+            {platform: 'meta', copy: meta, issues: validateMeta(meta)},
+        ]) {
+            expect(issues.length).toBeGreaterThan(0)
+            expect(validateUnknown({platform, copy})).toEqual({platform, valid: false, issues})
+        }
+    })
+
+    it.each([
+        {platform: 'rsa', copy: validRsa, field: 'headlines', limit: 30},
+        {platform: 'pmax', copy: dispatchFixtures[1]?.copy, field: 'shortHeadlines', limit: 30},
+        {platform: 'meta', copy: dispatchFixtures[2]?.copy, field: 'primaryTexts', limit: 125},
+    ])('preserves $platform exact-limit graphemes and overlong issues', ({platform, copy, field, limit}) => {
+        const rest = field === 'primaryTexts' ? [] : ['distinct words', 'another choice']
+        const exact = `  ${'👩‍💻'.repeat(limit)}  `
+        expect(validateUnknown({platform, copy: {...copy, [field]: [exact, ...rest]}})).toEqual({
+            platform,
+            valid: true,
+            issues: [],
+        })
+        const long = 'x'.repeat(limit + 1)
+        expect(validateUnknown({platform, copy: {...copy, [field]: [long, ...rest]}})).toEqual({
+            platform,
+            valid: false,
+            issues: [
+                {field: `${field}[0]`, message: `exceeds ${String(limit)} chars (${String(limit + 1)}): "${long}"`},
+            ],
+        })
+    })
+
+    it('arbitrary JSON extras cannot change valid results or mutate input', () => {
+        fc.assert(
+            fc.property(fc.jsonValue(), (extra) => {
+                const input = {platform: 'rsa', copy: {...validRsa, extra}, extra}
+                const before = JSON.stringify(input)
+                expect(validateUnknown(input)).toEqual({platform: 'rsa', valid: true, issues: []})
+                expect(JSON.stringify(input)).toBe(before)
             })
         )
     })

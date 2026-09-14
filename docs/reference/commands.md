@@ -20,7 +20,83 @@ and [Puppeteer's executable-path setting](https://pptr.dev/api/puppeteer.configu
 | `pnpm start`              | Serve the production build.                                       |
 | `pnpm render <jobs.json>` | Render a batch of image jobs (see [render jobs](render-jobs.md)). |
 
-## Quality
+## Validate saved copy
+
+```bash
+pnpm validate-copy "campaign copy.json"
+# Suppress pnpm's script-launch chatter for machine-readable stdout:
+pnpm --silent validate-copy "campaign copy.json"
+```
+
+The command reads exactly one UTF-8 JSON file, resolved relative to the package
+root (pnpm pins script `cwd` there, not the invoking shell's working directory).
+It writes no files and does not change campaigns or runs. Missing or
+extra arguments and unsupported options are usage errors. For filenames beginning
+with `-`, use a relative path such as `./-copy.json`.
+
+Input examples for each platform (all required fields must be present):
+
+```json
+{
+    "platform": "rsa",
+    "copy": {
+        "headlines": ["Own your privacy", "No renewals, ever", "Data brokers, gone"],
+        "descriptions": ["Buy once and keep control.", "Remove your personal data."],
+        "paths": []
+    }
+}
+```
+
+```json
+{
+    "platform": "pmax",
+    "copy": {
+        "shortHeadlines": ["Own your privacy", "No renewals, ever", "Data brokers, gone"],
+        "longHeadlines": ["Remove your data with one purchase"],
+        "descriptions": ["Buy once and keep control.", "Remove your personal data."],
+        "businessName": "GoodbyeSpy"
+    }
+}
+```
+
+```json
+{
+    "platform": "meta",
+    "copy": {
+        "primaryTexts": ["Keep your data private."],
+        "headlines": ["Own your privacy"],
+        "descriptions": ["One purchase"]
+    }
+}
+```
+
+The CLI uses the shared [copy validator and limits](copy-limits.md). Shape-valid
+input prints exactly one JSON result followed by a newline, with empty stderr:
+
+```json
+{"platform": "meta", "valid": true, "issues": []}
+```
+
+For the Meta example with `primaryTexts` changed to `[]`, stdout is:
+
+```json
+{"platform": "meta", "valid": false, "issues": [{"field": "primaryTexts", "message": "needs 1-5 entries, got 0"}]}
+```
+
+| Exit code | Meaning                                                            | Streams                                                                |
+| --------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| `0`       | Copy passes platform rules.                                        | JSON result on stdout; empty stderr.                                   |
+| `1`       | Shape is valid but copy violates platform rules.                   | JSON result with ordered field/message issues on stdout; empty stderr. |
+| `2`       | Bad usage, unreadable file, malformed JSON or invalid input shape. | Empty stdout; concise diagnostic on stderr without a stack trace.      |
+
+Null, arrays, unknown platforms, missing required fields and non-string list
+entries are shape errors, distinct from ordinary copy-rule issues. For example,
+an omitted RSA `paths` produces `copy.paths must be an array of strings` on stderr.
+Extra fields are ignored. Repeated validation preserves input bytes and produces
+identical results. These stream guarantees describe the CLI itself; use the
+silent pnpm invocation above to suppress the package manager's own output.
+
+## Quality commands
 
 | Command              | Description                                                                |
 | -------------------- | -------------------------------------------------------------------------- |

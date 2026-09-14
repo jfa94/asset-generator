@@ -4,6 +4,59 @@ Per-platform copy field counts and character limits enforced by
 `src/domain/validation/copy.ts`. All limits are validated both by the agent before
 saving and by the UI before leaving the review phase.
 
+## Validate unknown input
+
+Import `validateCopy`, `CopyValidationResult` and `CopyShapeError` from
+`@/domain/validation/copy`. `validateCopy(input: unknown): CopyValidationResult`
+checks runtime shape before dispatching to the existing platform validator.
+The input has a lowercase `platform` and a `copy` object:
+
+| Platform | Required fields in `copy`                                                                |
+| -------- | ---------------------------------------------------------------------------------------- |
+| `rsa`    | `headlines`, `descriptions`, `paths`: string arrays                                      |
+| `pmax`   | `shortHeadlines`, `longHeadlines`, `descriptions`: string arrays; `businessName`: string |
+| `meta`   | `primaryTexts`, `headlines`, `descriptions`: string arrays                               |
+
+For example:
+
+```ts
+const result = validateCopy({
+    platform: 'meta',
+    copy: {
+        primaryTexts: ['Keep your data private.'],
+        headlines: ['Own your privacy'],
+        descriptions: ['One purchase'],
+    },
+})
+// {platform: 'meta', valid: true, issues: []}
+```
+
+The result contains exactly `platform`, `valid` and `issues`, with `valid` true
+exactly when the ordered `CopyIssue[]` is empty. Validation is deterministic and
+does not change the input, including deeply frozen objects. Extra fields are ignored.
+
+Null, arrays or scalar values in place of either object, unknown platforms,
+missing fields, wrong field types and non-string list entries throw
+`CopyShapeError`. Its message identifies the field, for example
+`copy.headlines[1] must be a string`. RSA `paths` is required even when it is `[]`.
+
+Empty arrays and empty, whitespace-only or overlong strings have valid shape:
+they reach the platform rules below and return ordinary issues instead of throwing.
+For example, Meta input with `primaryTexts: []` and otherwise valid fields returns
+`{platform: 'meta', valid: false, issues: [{field: 'primaryTexts', message: 'needs 1-5 entries, got 0'}]}`.
+Existing typed validators remain available with their original issue results and limits.
+
+## Validate a saved file
+
+Use `pnpm validate-copy <file.json>` to validate any of the three input shapes
+above, or `pnpm --silent validate-copy <file.json>` for machine-readable package
+script output. See [command examples and exit codes](commands.md#validate-saved-copy)
+for complete RSA, PMax and Meta JSON inputs and valid/invalid output examples.
+The command emits the same result plus a newline: exit `0` for valid copy,
+`1` for platform issues, or `2` for usage, read, JSON or shape errors. Exit `2`
+has empty stdout and a concise stderr diagnostic without a stack trace. Input
+files are never changed.
+
 ## Character counting
 
 Character counts use Unicode grapheme segmentation (`Intl.Segmenter`), not UTF-16
@@ -65,10 +118,13 @@ block prefixed with the campaign slug and platform, e.g.
 
 ## Exported helpers
 
-| Symbol                 | Purpose                                                    |
-| ---------------------- | ---------------------------------------------------------- |
-| `charCount(s)`         | Grapheme-aware character count.                            |
-| `isNearDuplicate(a,b)` | Whether two strings are near-duplicates by the rule above. |
-| `validateRsa(copy)`    | Validate an `RsaCopy`.                                     |
-| `validatePmax(copy)`   | Validate a `PmaxCopy`.                                     |
-| `validateMeta(copy)`   | Validate a `MetaCopy`.                                     |
+| Symbol                 | Purpose                                                             |
+| ---------------------- | ------------------------------------------------------------------- |
+| `charCount(s)`         | Grapheme-aware character count.                                     |
+| `isNearDuplicate(a,b)` | Whether two strings are near-duplicates by the rule above.          |
+| `validateRsa(copy)`    | Validate an `RsaCopy`.                                              |
+| `validatePmax(copy)`   | Validate a `PmaxCopy`.                                              |
+| `validateMeta(copy)`   | Validate a `MetaCopy`.                                              |
+| `validateCopy(input)`  | Check unknown input shape and return platform, validity and issues. |
+| `CopyShapeError`       | Distinguishable error for malformed input.                          |
+| `CopyValidationResult` | Type of the shared platform/valid/issues result.                    |
