@@ -1,11 +1,16 @@
 import {readFileSync} from 'node:fs'
 import {pathToFileURL} from 'node:url'
 import {CopyShapeError, validateCopy} from '@/domain/validation/copy'
+import {validateCopyBatch} from '@/domain/validation/batch'
+
+const USAGE = 'Usage: pnpm validate-copy <file.json>\n       pnpm validate-copy --batch <file.json>\n'
 
 export function main(args: string[]): number {
-    const path = args[0]
-    if (args.length !== 1 || path === undefined || path.startsWith('-')) {
-        process.stderr.write('Usage: pnpm validate-copy <file.json>\n')
+    const isBatch = args[0] === '--batch'
+    const path = isBatch ? args[1] : args[0]
+    const validUsage = isBatch ? args.length === 2 : args.length === 1
+    if (!validUsage || path === undefined || path.startsWith('-')) {
+        process.stderr.write(USAGE)
         return 2
     }
 
@@ -26,6 +31,11 @@ export function main(args: string[]): number {
     }
 
     try {
+        if (isBatch) {
+            const result = validateCopyBatch(input)
+            process.stdout.write(`${JSON.stringify(result)}\n`)
+            return result.valid ? 0 : 1
+        }
         const result = validateCopy(input)
         process.stdout.write(`${JSON.stringify(result)}\n`)
         return result.valid ? 0 : 1
