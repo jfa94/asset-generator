@@ -43,6 +43,18 @@ function requireEntryId(entry: Record<string, unknown>, index: number, seenIds: 
     return id
 }
 
+/** Delegates to validateCopy and prefixes any shape error with entries[<index>]. (D4). */
+function delegateToValidateCopy(value: unknown, index: number): CopyValidationResult {
+    try {
+        return validateCopy(value)
+    } catch (error) {
+        if (error instanceof CopyShapeError) {
+            throw new CopyShapeError(`entries[${String(index)}].${error.message}`)
+        }
+        throw error
+    }
+}
+
 /** Shape and identifier gate: throws on the first left-to-right violation, no partial output. */
 export function parseCopyBatch(input: unknown): ParsedBatchEntry[] {
     const entries = requireEntriesArray(input)
@@ -51,19 +63,11 @@ export function parseCopyBatch(input: unknown): ParsedBatchEntry[] {
     for (let index = 0; index < entries.length; index++) {
         const rawEntry = entries[index]
         if (typeof rawEntry !== 'object' || rawEntry === null || Array.isArray(rawEntry)) {
-            throw new CopyShapeError(`entries[${String(index)}] must be an object`)
+            delegateToValidateCopy(rawEntry, index)
         }
         const entry = rawEntry as Record<string, unknown>
         const id = requireEntryId(entry, index, seenIds)
-        let result: CopyValidationResult
-        try {
-            result = validateCopy({platform: entry['platform'], copy: entry['copy']})
-        } catch (error) {
-            if (error instanceof CopyShapeError) {
-                throw new CopyShapeError(`entries[${String(index)}].${error.message}`)
-            }
-            throw error
-        }
+        const result = delegateToValidateCopy({platform: entry['platform'], copy: entry['copy']}, index)
         parsed.push({id, result})
     }
     return parsed

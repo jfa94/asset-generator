@@ -197,7 +197,7 @@ describe('parseCopyBatch entry shape delegation [batch-001]', () => {
         const parse = await loadParseCopyBatch()
         const input = {entries: [rsaEntry, entry]}
         expect(() => parse(input)).toThrow(CopyShapeError)
-        expect(batchShapeMessage(parse, input)).toBe('entries[1] must be an object')
+        expect(batchShapeMessage(parse, input)).toBe('entries[1].input must be an object')
     })
 
     const shapeViolations: {label: string; platform: unknown; copy: unknown}[] = [
@@ -378,6 +378,11 @@ const shapeMessageFrom = (run: (input: unknown) => unknown, input: unknown): str
 
 const rsaEntryWithNoHeadlines = {id: 'rsa-empty', platform: 'rsa', copy: {...validRsaCopy, headlines: []}}
 const metaEntryWithNoPrimaryTexts = {id: 'meta-empty', platform: 'meta', copy: {...validMetaCopy, primaryTexts: []}}
+const rsaEntryWithTwoIssues = {
+    id: 'rsa-two-issues',
+    platform: 'rsa',
+    copy: {...validRsaCopy, headlines: [], descriptions: []},
+}
 
 describe('validateCopyBatch result envelope [batch-002]', () => {
     it('returns exactly the valid and results keys with one result per entry in input order', async () => {
@@ -422,6 +427,12 @@ describe('validateCopyBatch result envelope [batch-002]', () => {
         )
         expect(output.results[0]?.issues.map((issue) => issue.field)).toEqual(['headlines'])
         expect(output.results[1]?.issues).toEqual([])
+    })
+
+    it('reports every issue for an entry that fails more than one rule (collect-all per entry)', async () => {
+        const validate = await loadValidateCopyBatch()
+        const output = validate({entries: [rsaEntryWithTwoIssues]})
+        expect(output.results[0]?.issues.map((issue) => issue.field)).toEqual(['headlines', 'descriptions'])
     })
 
     it('returns each platform of a mixed rsa, pmax and meta batch in its own result', async () => {
