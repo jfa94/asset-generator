@@ -1,8 +1,20 @@
-import {CopyShapeError, validateCopy, type CopyValidationResult} from '@/domain/validation/copy'
+import {CopyShapeError, validateCopy, type CopyIssue, type CopyValidationResult} from '@/domain/validation/copy'
 
 export interface ParsedBatchEntry {
     id: string
     result: CopyValidationResult
+}
+
+export interface BatchEntryResult {
+    id: string
+    platform: CopyValidationResult['platform']
+    valid: boolean
+    issues: CopyIssue[]
+}
+
+export interface BatchValidationResult {
+    valid: boolean
+    results: BatchEntryResult[]
 }
 
 function requireEntriesArray(input: unknown): unknown[] {
@@ -55,4 +67,16 @@ export function parseCopyBatch(input: unknown): ParsedBatchEntry[] {
         parsed.push({id, result})
     }
     return parsed
+}
+
+/** Documented public entry point: maps the parsed batch to ordered results plus aggregate validity. */
+export function validateCopyBatch(input: unknown): BatchValidationResult {
+    const parsed = parseCopyBatch(input)
+    const results: BatchEntryResult[] = parsed.map(({id, result}) => ({
+        id,
+        platform: result.platform,
+        valid: result.valid,
+        issues: result.issues,
+    }))
+    return {valid: results.every((result) => result.valid), results}
 }
