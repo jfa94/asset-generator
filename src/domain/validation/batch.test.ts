@@ -1,6 +1,6 @@
 import fc from 'fast-check'
 import {describe, expect, it} from 'vitest'
-import {CopyShapeError, validateCopy} from '@/domain/validation/copy'
+import {CopyShapeError, validateCopy, type CopyIssue, type CopyValidationResult} from '@/domain/validation/copy'
 import {parseCopyBatch} from '@/domain/validation/batch'
 
 // Type-linked to the module's real exported signature, so a renamed field fails tsc.
@@ -319,5 +319,220 @@ describe('parseCopyBatch malformed batches [batch-001]', () => {
         }).toThrow(CopyShapeError)
         expect(returned).toBe('parseCopyBatch was not called')
         expect(JSON.stringify(input)).toBe(before)
+    })
+})
+
+// The public contract batch-002 must satisfy, declared here rather than imported so the
+// suite type-checks and executes before validateCopyBatch exists.
+interface BatchEntryResult {
+    id: string
+    platform: CopyValidationResult['platform']
+    valid: boolean
+    issues: CopyIssue[]
+}
+
+interface BatchValidationResult {
+    valid: boolean
+    results: BatchEntryResult[]
+}
+
+type ValidateCopyBatch = (input: unknown) => BatchValidationResult
+
+interface PublicBatchModule {
+    validateCopyBatch: ValidateCopyBatch
+}
+
+declare global {
+    interface ImportMeta {
+        glob<T>(pattern: string): Record<string, () => Promise<T>>
+    }
+}
+
+// A lazy glob keeps RED executable: while validateCopyBatch is missing the export is absent
+// and every test fails on its own assertion instead of on an unresolved static import.
+const publicBatchModules = import.meta.glob<PublicBatchModule>('./batch.ts')
+
+const loadValidateCopyBatch = async (): Promise<ValidateCopyBatch> => {
+    const module = await publicBatchModules['./batch.ts']?.()
+    const validate = module?.validateCopyBatch
+    expect(typeof validate).toBe('function')
+    if (validate === undefined) {
+        throw new Error('src/domain/validation/batch.ts must export validateCopyBatch')
+    }
+    return validate
+}
+
+// Reads back the rejection message of whichever entry point is under test, so the
+// delegation contract is asserted as a relation instead of as a copied message literal.
+const shapeMessageFrom = (run: (input: unknown) => unknown, input: unknown): string => {
+    try {
+        run(input)
+    } catch (error) {
+        if (error instanceof CopyShapeError) {
+            return error.message
+        }
+        throw error
+    }
+    throw new Error('expected this batch entry point to reject the fixture')
+}
+
+const rsaEntryWithNoHeadlines = {id: 'rsa-empty', platform: 'rsa', copy: {...validRsaCopy, headlines: []}}
+const metaEntryWithNoPrimaryTexts = {id: 'meta-empty', platform: 'meta', copy: {...validMetaCopy, primaryTexts: []}}
+
+describe('validateCopyBatch result envelope [batch-002]', () => {
+    it('returns exactly the valid and results keys with one result per entry in input order', async () => {
+        const validate = await loadValidateCopyBatch()
+        const output = validate({entries: validEntries})
+        expect(Object.keys(output)).toEqual(['valid', 'results'])
+        expect(output.results).toHaveLength(validEntries.length)
+        expect(output.results.map((result) => result.id)).toEqual(['rsa-one', 'pmax-two', 'meta-three'])
+        expect(output.valid).toBe(true)
+    })
+
+    it('preserves a five-entry input order when ids are supplied in non-alphabetical order', async () => {
+        const validate = await loadValidateCopyBatch()
+        const ids = ['zulu', 'alpha', 'mike', 'bravo', 'yankee']
+        const output = validate({entries: ids.map((id, index) => ({id, ...fixtureAt(index)}))})
+        expect(output.results.map((result) => result.id)).toEqual(ids)
+        expect(output.results.map((result) => result.platform)).toEqual(['rsa', 'pmax', 'meta', 'rsa', 'pmax'])
+    })
+
+    it('echoes the entry id and platform verbatim and exposes only id, platform, valid and issues', async () => {
+        const validate = await loadValidateCopyBatch()
+        const output = validate({
+            entries: [
+                {id: ' spaced id ', platform: 'rsa', copy: validRsaCopy},
+                {id: 'Mixed Case', platform: 'meta', copy: validMetaCopy},
+            ],
+        })
+        expect(output.results.map((result) => result.id)).toEqual([' spaced id ', 'Mixed Case'])
+        expect(output.results.map((result) => result.platform)).toEqual(['rsa', 'meta'])
+        expect(output.results.map((result) => Object.keys(result))).toEqual([
+            ['id', 'platform', 'valid', 'issues'],
+            ['id', 'platform', 'valid', 'issues'],
+        ])
+    })
+
+    it('carries the validateCopy issues of each entry, in the same order', async () => {
+        const validate = await loadValidateCopyBatch()
+        const entries = [rsaEntryWithNoHeadlines, metaEntry]
+        const output = validate({entries})
+        expect(output.results.map((result) => result.issues)).toEqual(
+            entries.map((entry) => validateCopy({platform: entry.platform, copy: entry.copy}).issues)
+        )
+        expect(output.results[0]?.issues.map((issue) => issue.field)).toEqual(['headlines'])
+        expect(output.results[1]?.issues).toEqual([])
+    })
+
+    it('returns each platform of a mixed rsa, pmax and meta batch in its own result', async () => {
+        const validate = await loadValidateCopyBatch()
+        const output = validate({entries: validEntries})
+        expect(output.results.map((result) => result.platform)).toEqual(['rsa', 'pmax', 'meta'])
+        expect(output.results.map((result) => result.valid)).toEqual([true, true, true])
+    })
+})
+
+describe('validateCopyBatch collect-all and aggregate validity [batch-002]', () => {
+    it('reports rule violations at index 0 and index 2 instead of stopping at the first', async () => {
+        const validate = await loadValidateCopyBatch()
+        const entries = [rsaEntryWithNoHeadlines, pmaxEntry, metaEntryWithNoPrimaryTexts]
+        const output = validate({entries})
+        expect(output.results).toHaveLength(entries.length)
+        expect(output.results.map((result) => result.valid)).toEqual([false, true, false])
+        expect(output.results[0]?.issues.map((issue) => issue.field)).toEqual(['headlines'])
+        expect(output.results[2]?.issues.map((issue) => issue.field)).toEqual(['primaryTexts'])
+        expect(output.valid).toBe(false)
+    })
+
+    it('sets the aggregate valid true when every entry result is valid', async () => {
+        const validate = await loadValidateCopyBatch()
+        const output = validate({entries: validEntries})
+        expect(output.valid).toBe(true)
+        expect(output.results.map((result) => result.valid)).toEqual([true, true, true])
+        expect(output.results.flatMap((result) => result.issues)).toEqual([])
+    })
+
+    it.each([0, 1, 2])(
+        'sets the aggregate valid false when exactly the entry at index %i is invalid',
+        async (index) => {
+            const validate = await loadValidateCopyBatch()
+            const entries = [0, 1, 2].map((position) => ({
+                id: `rsa-${String(position)}`,
+                platform: 'rsa',
+                copy: position === index ? {...validRsaCopy, headlines: []} : validRsaCopy,
+            }))
+            const output = validate({entries})
+            expect(output.valid).toBe(false)
+            expect(output.results.map((result) => result.valid)).toEqual([index !== 0, index !== 1, index !== 2])
+            expect(output.results[index]?.issues.map((issue) => issue.field)).toEqual(['headlines'])
+        }
+    )
+})
+
+describe('validateCopyBatch shape delegation [batch-002]', () => {
+    const malformedBatches: {label: string; input: unknown}[] = [
+        {label: 'an empty batch', input: {entries: []}},
+        {label: 'a non-array entries value', input: {entries: 'nope'}},
+        {
+            label: 'a duplicate id',
+            input: {
+                entries: [
+                    {id: 'dup', platform: 'rsa', copy: validRsaCopy},
+                    {id: 'dup', platform: 'meta', copy: validMetaCopy},
+                ],
+            },
+        },
+        {label: 'a blank id', input: {entries: [{id: '   ', platform: 'rsa', copy: validRsaCopy}]}},
+        {label: 'a malformed entry', input: {entries: [rsaEntry, {id: 'broken', platform: 'tiktok', copy: {}}]}},
+    ]
+
+    it.each(malformedBatches)('throws the parseCopyBatch CopyShapeError message for $label', async ({input}) => {
+        const validate = await loadValidateCopyBatch()
+        expect(() => validate(input)).toThrow(CopyShapeError)
+        expect(shapeMessageFrom(validate, input)).toBe(shapeMessageFrom(parseCopyBatch, input))
+    })
+
+    it('returns no result value for a malformed batch', async () => {
+        const validate = await loadValidateCopyBatch()
+        let returned: unknown = 'validateCopyBatch was not called'
+        expect(() => {
+            returned = validate({entries: [rsaEntry, {id: 'broken', platform: 'tiktok', copy: {}}]})
+        }).toThrow(CopyShapeError)
+        expect(returned).toBe('validateCopyBatch was not called')
+    })
+})
+
+describe('validateCopyBatch determinism and immutability [batch-002]', () => {
+    it('returns deep-equal results on repeated calls and leaves a deeply frozen batch unchanged', async () => {
+        const validate = await loadValidateCopyBatch()
+        fc.assert(
+            fc.property(
+                fc.uniqueArray(
+                    fc.string({minLength: 1, maxLength: 12}).filter((candidate) => candidate.trim().length > 0),
+                    {minLength: 1, maxLength: 4}
+                ),
+                (ids) => {
+                    const input = {entries: ids.map((id, index) => ({id, ...fixtureAt(index)}))}
+                    deepFreeze(input)
+                    const before = JSON.stringify(input)
+                    const first = validate(input)
+                    expect(first.results.map((result) => result.id)).toEqual(ids)
+                    expect(first.valid).toBe(true)
+                    expect(validate(input)).toEqual(first)
+                    expect(JSON.stringify(input)).toBe(before)
+                }
+            )
+        )
+    })
+
+    it('returns a fresh results array that does not alias the previous call', async () => {
+        const validate = await loadValidateCopyBatch()
+        const input = structuredClone({entries: [rsaEntryWithNoHeadlines, pmaxEntry]})
+        const first = validate(input)
+        const second = validate(input)
+        expect(second).toEqual(first)
+        expect(second.results).not.toBe(first.results)
+        first.results[0]?.issues.push({field: 'tampered', message: 'tampered'})
+        expect(validate(input).results[0]?.issues.map((issue) => issue.field)).toEqual(['headlines'])
     })
 })
