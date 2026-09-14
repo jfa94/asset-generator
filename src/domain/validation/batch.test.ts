@@ -1,38 +1,13 @@
 import fc from 'fast-check'
 import {describe, expect, it} from 'vitest'
-import {CopyShapeError, validateCopy, type CopyValidationResult} from '@/domain/validation/copy'
+import {CopyShapeError, validateCopy} from '@/domain/validation/copy'
+import {parseCopyBatch} from '@/domain/validation/batch'
 
-// The seam contract batch-001 must satisfy, declared here rather than imported so the
-// suite type-checks and executes before src/domain/validation/batch.ts exists.
-interface ParsedBatchEntry {
-    id: string
-    result: CopyValidationResult
-}
-
-type ParseCopyBatch = (input: unknown) => ParsedBatchEntry[]
-
-interface BatchModule {
-    parseCopyBatch: ParseCopyBatch
-}
-
-declare global {
-    interface ImportMeta {
-        glob<T>(pattern: string): Record<string, () => Promise<T>>
-    }
-}
-
-// A lazy glob keeps RED executable: while batch.ts is missing the loader is absent and
-// every test fails on its own assertion instead of on an unresolved static import.
-const batchModules = import.meta.glob<BatchModule>('./batch.ts')
+// Type-linked to the module's real exported signature, so a renamed field fails tsc.
+type ParseCopyBatch = typeof parseCopyBatch
 
 const loadParseCopyBatch = async (): Promise<ParseCopyBatch> => {
-    const module = await batchModules['./batch.ts']?.()
-    const parse = module?.parseCopyBatch
-    expect(typeof parse).toBe('function')
-    if (parse === undefined) {
-        throw new Error('src/domain/validation/batch.ts must export parseCopyBatch')
-    }
-    return parse
+    return await Promise.resolve(parseCopyBatch)
 }
 
 const validRsaCopy = {
@@ -71,12 +46,13 @@ const platformFixtures = [
     {platform: 'meta', copy: validMetaCopy as unknown},
 ]
 
+// Clones per call so freezing the built input never freezes the shared module-level fixtures.
 const fixtureAt = (index: number): {platform: string; copy: unknown} => {
     const fixture = platformFixtures[index % platformFixtures.length]
     if (fixture === undefined) {
         throw new Error('fixture index out of range')
     }
-    return fixture
+    return structuredClone(fixture)
 }
 
 const deepFreeze = (value: unknown): void => {
@@ -116,23 +92,24 @@ const batchShapeMessage = (parse: ParseCopyBatch, input: unknown): string => {
 }
 
 describe('parseCopyBatch root shape [batch-001]', () => {
-    const malformedRoots: {label: string; input: unknown}[] = [
-        {label: 'null', input: null},
-        {label: 'undefined', input: undefined},
-        {label: 'an empty array', input: []},
-        {label: 'an array of entries', input: [rsaEntry]},
-        {label: 'a string', input: 'entries'},
-        {label: 'a number', input: 42},
-        {label: 'a boolean', input: true},
-        {label: 'an object with no entries key', input: {items: []}},
-        {label: 'a null entries value', input: {entries: null}},
-        {label: 'a string entries value', input: {entries: 'nope'}},
-        {label: 'an object entries value', input: {entries: {0: rsaEntry}}},
+    const malformedRoots: {label: string; input: unknown; message: string}[] = [
+        {label: 'null', input: null, message: 'input must be an object'},
+        {label: 'undefined', input: undefined, message: 'input must be an object'},
+        {label: 'an empty array', input: [], message: 'input must be an object'},
+        {label: 'an array of entries', input: [rsaEntry], message: 'input must be an object'},
+        {label: 'a string', input: 'entries', message: 'input must be an object'},
+        {label: 'a number', input: 42, message: 'input must be an object'},
+        {label: 'a boolean', input: true, message: 'input must be an object'},
+        {label: 'an object with no entries key', input: {items: []}, message: 'entries must be an array'},
+        {label: 'a null entries value', input: {entries: null}, message: 'entries must be an array'},
+        {label: 'a string entries value', input: {entries: 'nope'}, message: 'entries must be an array'},
+        {label: 'an object entries value', input: {entries: {0: rsaEntry}}, message: 'entries must be an array'},
     ]
 
-    it.each(malformedRoots)('rejects $label with CopyShapeError', async ({input}) => {
+    it.each(malformedRoots)('rejects $label with CopyShapeError', async ({input, message}) => {
         const parse = await loadParseCopyBatch()
         expect(() => parse(input)).toThrow(CopyShapeError)
+        expect(batchShapeMessage(parse, input)).toBe(message)
     })
 
     it('names entries, not an index, when the entries value is not an array', async () => {
@@ -210,7 +187,7 @@ describe('parseCopyBatch entry shape delegation [batch-001]', () => {
         const parse = await loadParseCopyBatch()
         const input = {entries: [rsaEntry, entry]}
         expect(() => parse(input)).toThrow(CopyShapeError)
-        expect(batchShapeMessage(parse, input)).toContain('entries[1]')
+        expect(batchShapeMessage(parse, input)).toBe('entries[1] must be an object')
     })
 
     const shapeViolations: {label: string; platform: unknown; copy: unknown}[] = [
