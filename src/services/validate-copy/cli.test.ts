@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os'
 import {join, resolve} from 'node:path'
 import {pathToFileURL} from 'node:url'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
-import {validateCopy, type CopyIssue} from '@/domain/validation/copy'
+import {CopyShapeError, validateCopy, type CopyIssue} from '@/domain/validation/copy'
 import {validateCopyBatch} from '@/domain/validation/batch'
 
 interface CommandResult {
@@ -435,4 +435,176 @@ it('gives identical batch output through the in-process adapter and the actual N
     const entryPoint = runNode(['--batch', path])
     expect(adapter).toEqual({code: 1, stdout: `${JSON.stringify(mixedPayload)}\n`, stderr: ''})
     expect(entryPoint).toEqual(adapter)
+})
+
+// --- batch-004: --batch failure modes exit 2 with clean streams and no writes ---
+
+interface UsagePaths {
+    first: string
+    second: string
+}
+
+/** The exact CopyShapeError message the CLI must surface; fails loudly when the batch is well shaped. */
+function shapeErrorMessage(batch: unknown): string {
+    try {
+        validateCopyBatch(batch)
+    } catch (error) {
+        if (error instanceof CopyShapeError) {
+            return error.message
+        }
+        throw error
+    }
+    throw new Error('expected validateCopyBatch to reject this batch with a CopyShapeError')
+}
+
+const duplicateIdBatch = {entries: [rsaBatchEntry, pmaxBatchEntry, metaBatchEntry, {...rsaBatchEntry}]}
+const blankIdBatch = {entries: [rsaBatchEntry, pmaxBatchEntry, {id: '  \t ', platform: 'meta', copy: batchMetaCopy}]}
+const unknownPlatformBatch = {
+    entries: [rsaBatchEntry, {id: 'email-four', platform: 'email', copy: {}}, metaBatchEntry],
+}
+// Shape violations at index 1 (unknown platform) and index 3 (blank id): one left-to-right pass reports index 1.
+const twoShapeViolationBatch = {
+    entries: [
+        rsaBatchEntry,
+        {id: 'email-four', platform: 'email', copy: {}},
+        pmaxBatchEntry,
+        {id: ' ', platform: 'meta', copy: batchMetaCopy},
+    ],
+}
+
+const batchShapeFailures = [
+    {name: 'an empty entries array', batch: {entries: []}, message: 'entries must have at least one entry'},
+    {name: 'a non-array entries value', batch: {entries: {}}, message: 'entries must be an array'},
+    {name: 'a root that is not an object', batch: [rsaBatchEntry], message: 'input must be an object'},
+    {
+        name: 'a duplicate id reported at the later index',
+        batch: duplicateIdBatch,
+        message: 'entries[3].id is a duplicate identifier',
+    },
+    {name: 'a blank id', batch: blankIdBatch, message: 'entries[2].id must be a nonempty string'},
+    {name: 'a non-object entry', batch: {entries: ['not an entry']}, message: 'entries[0].input must be an object'},
+    {
+        name: 'an unknown platform',
+        batch: unknownPlatformBatch,
+        message: 'entries[1].platform must be rsa, pmax or meta',
+    },
+    {
+        name: 'the first of two shape violations',
+        batch: twoShapeViolationBatch,
+        message: 'entries[1].platform must be rsa, pmax or meta',
+    },
+]
+
+const usageCases: {name: string; build: (paths: UsagePaths) => string[]}[] = [
+    {name: '--batch with no path', build: () => ['--batch']},
+    {name: '--batch with two paths', build: ({first, second}) => ['--batch', first, second]},
+    {name: 'a positional path followed by --batch', build: ({first}) => [first, '--batch']},
+    {name: 'a repeated --batch flag', build: ({first}) => ['--batch', '--batch', first]},
+    {name: 'an unknown option carrying a path', build: ({first}) => ['--unknown', first]},
+    {name: 'an unknown option on its own', build: () => ['--verbose']},
+    {name: 'an attached --batch=path form', build: ({first}) => [`--batch=${first}`]},
+    {name: 'a --batch path beginning with a hyphen', build: () => ['--batch', '-campaign batch.json']},
+]
+
+function saveUsagePaths(): UsagePaths {
+    const second = join(fixtureDirectory, 'second batch.json')
+    writeFileSync(second, JSON.stringify(allValidBatch), 'utf8')
+    return {first: saveBatch(allValidBatch), second}
+}
+
+describe.each([
+    {name: 'in-process adapter', run: runAdapter},
+    {name: 'actual Node/tsx entry point', run: runNode},
+])('$name --batch failure modes [batch-004]', ({run}) => {
+    it.each(usageCases)('rejects $name with a usage diagnostic naming --batch', async ({build}) => {
+        const result = await run(build(saveUsagePaths()))
+        expectDiagnostic(result)
+        expect(result.stdout).toBe('')
+        expect(result.stderr).toMatch(/usage/i)
+        const lines = result.stderr.split('\n')
+        expect(lines).toHaveLength(3)
+        expect(lines[2]).toBe('')
+        expect(lines[0]).toContain('<file.json>')
+        expect(lines[0]).not.toContain('--batch')
+        expect(lines[1]).toContain('--batch <file.json>')
+    })
+
+    it('prints one identical usage diagnostic for every usage permutation', async () => {
+        const paths = saveUsagePaths()
+        const results: CommandResult[] = []
+        for (const {build} of usageCases) {
+            results.push(await run(build(paths)))
+        }
+        const expected = results[0]
+        expect(expected?.code).toBe(2)
+        expect(expected?.stdout).toBe('')
+        expect(results).toHaveLength(usageCases.length)
+        for (const result of results) {
+            expect(result).toEqual(expected)
+        }
+    })
+
+    it.each(batchShapeFailures)('rejects $name with the CopyShapeError message on stderr', async ({batch, message}) => {
+        expect(shapeErrorMessage(batch)).toBe(message)
+        expect(await run(['--batch', saveBatch(batch)])).toEqual({code: 2, stdout: '', stderr: `${message}\n`})
+    })
+
+    it('reports a missing batch file exactly as the shipped single-file command does', async () => {
+        const missing = join(fixtureDirectory, 'missing batch.json')
+        const batchResult = await run(['--batch', missing])
+        expectDiagnostic(batchResult)
+        expect(batchResult).toEqual(await run([missing]))
+    })
+
+    it('reports a directory batch path exactly as the shipped single-file command does', async () => {
+        const batchResult = await run(['--batch', fixtureDirectory])
+        expectDiagnostic(batchResult)
+        expect(batchResult).toEqual(await run([fixtureDirectory]))
+    })
+
+    it('reports malformed batch JSON exactly as the shipped single-file command does', async () => {
+        const path = join(fixtureDirectory, 'broken batch.json')
+        writeFileSync(path, '{"entries":[{"id":"rsa-one",', 'utf8')
+        const batchResult = await run(['--batch', path])
+        expectDiagnostic(batchResult)
+        expect(batchResult).toEqual(await run([path]))
+    })
+
+    it('prints no stack-trace frame on any --batch failure', async () => {
+        const paths = saveUsagePaths()
+        const brokenPath = join(fixtureDirectory, 'broken batch.json')
+        writeFileSync(brokenPath, '{"entries":', 'utf8')
+        const results = [
+            await run(['--batch']),
+            await run(['--batch', paths.first, paths.second]),
+            await run(['--batch', join(fixtureDirectory, 'missing batch.json')]),
+            await run(['--batch', fixtureDirectory]),
+            await run(['--batch', brokenPath]),
+            await run(['--batch', saveBatch(duplicateIdBatch)]),
+            await run(['--batch', saveBatch(twoShapeViolationBatch)]),
+        ]
+        expect(results.map((result) => result.code)).toEqual([2, 2, 2, 2, 2, 2, 2])
+        for (const result of results) {
+            expect(result.stdout).toBe('')
+            expect(result.stderr.endsWith('\n')).toBe(true)
+            expect(result.stderr).not.toMatch(/(^|\n)\s*at\s+\S/)
+            expect(result.stderr).not.toContain('node:internal')
+            expect(result.stderr).not.toContain('CopyShapeError:')
+        }
+    })
+
+    it('writes no file: the directory listing and input bytes survive failing --batch runs', async () => {
+        const path = saveBatch(duplicateIdBatch)
+        const before = readFileSync(path)
+        const listing = readdirSync(fixtureDirectory).sort()
+        expect(listing).toEqual(['campaign batch.json'])
+        expect(await run(['--batch', path])).toEqual({
+            code: 2,
+            stdout: '',
+            stderr: 'entries[3].id is a duplicate identifier\n',
+        })
+        expect((await run(['--batch', path, path])).code).toBe(2)
+        expect(readFileSync(path)).toEqual(before)
+        expect(readdirSync(fixtureDirectory).sort()).toEqual(listing)
+    })
 })
