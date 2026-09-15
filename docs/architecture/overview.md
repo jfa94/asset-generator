@@ -143,10 +143,11 @@ of flat `RenderJobFile` entries, inlining CSS, logo, and image file references.
 
 ### Saved-copy validation (`src/services/validate-copy/`)
 
-The `validate-copy` CLI reads one JSON file and delegates runtime shape checks
-and platform rules to the domain's `validateCopy` entry point. It returns a JSON
-result or a concise error with an exit code, without changing files or run state.
-See [command reference](../reference/commands.md#validate-saved-copy).
+The `validate-copy` CLI validates one saved copy file, or a named batch file of
+several entries via `--batch`, delegating runtime shape checks and platform
+rules to the domain's `validateCopy` / `validateCopyBatch` entry points. It
+returns a JSON result or a concise error with an exit code, without changing
+files or run state. See [command reference](../reference/commands.md#validate-saved-copy).
 
 ### Agent skill (`.claude/skills/new-run/SKILL.md`)
 
