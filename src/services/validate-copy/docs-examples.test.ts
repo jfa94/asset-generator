@@ -88,6 +88,18 @@ function exitCodeRow(section: DocSection, code: string): string {
     return matched[0] ?? ''
 }
 
+interface ExitCodeRowCells {
+    meaning: string
+    streams: string
+}
+
+// Splits "| code | Meaning | Streams |" into its own cells so a table row's cells are
+// asserted independently, not against the row's concatenated text.
+function exitCodeRowCells(section: DocSection, code: string): ExitCodeRowCells {
+    const cells = exitCodeRow(section, code).split('|')
+    return {meaning: (cells[2] ?? '').trim(), streams: (cells[3] ?? '').trim()}
+}
+
 function parseJson(text: string): unknown {
     return JSON.parse(text) as unknown
 }
@@ -199,14 +211,32 @@ describe('documented --batch examples in docs/reference/commands.md', () => {
 
     it('documents exit 0, 1 and 2 for the batch command, and exit 2 really leaves stdout empty', () => {
         const section = batchSection(readCommandsDocument())
-        expect(exitCodeRow(section, '0')).toMatch(/\bevery entry is valid\b/i)
-        expect(exitCodeRow(section, '0')).not.toMatch(/invalid/i)
-        expect(exitCodeRow(section, '1')).toMatch(/\bviolates platform rules\b/i)
-        const failureRow = exitCodeRow(section, '2')
-        expect(failureRow).toMatch(/usage/i)
-        expect(failureRow).toMatch(/json/i)
-        expect(failureRow).toMatch(/shape/i)
-        expect(failureRow).toMatch(/empty stdout/i)
+
+        const exit0 = exitCodeRowCells(section, '0')
+        expect(exit0.meaning).toMatch(/\bevery entry is valid\b/i)
+        expect(exit0.meaning).not.toMatch(/invalid/i)
+        expect(exit0.streams).toMatch(/\bjson\b.*\bstdout\b/i)
+        expect(exit0.streams).toMatch(/\bempty stderr\b/i)
+        expect(exit0.streams).not.toMatch(/\bempty stdout\b/i)
+        expect(exit0.streams).not.toMatch(/\bdiagnostic\b/i)
+
+        const exit1 = exitCodeRowCells(section, '1')
+        expect(exit1.meaning).toMatch(/\bviolates platform rules\b/i)
+        expect(exit1.streams).toMatch(/\bjson\b.*\bstdout\b/i)
+        expect(exit1.streams).toMatch(/\bempty stderr\b/i)
+        expect(exit1.streams).not.toMatch(/\bempty stdout\b/i)
+        expect(exit1.streams).not.toMatch(/\bdiagnostic\b/i)
+
+        const exit2 = exitCodeRowCells(section, '2')
+        expect(exit2.meaning).toMatch(/\busage\b/i)
+        expect(exit2.meaning).toMatch(/\b(unreadable|read failure)\b/i)
+        expect(exit2.meaning).toMatch(/\bmalformed json\b/i)
+        expect(exit2.meaning).toMatch(/\bshape\b/i)
+        expect(exit2.meaning).not.toMatch(/\bevery entry is valid\b/i)
+        expect(exit2.meaning).not.toMatch(/\bexit 0\b/i)
+        expect(exit2.streams).toMatch(/\bempty stdout\b/i)
+        expect(exit2.streams).toMatch(/\bdiagnostic\b.*\bstderr\b/i)
+        expect(exit2.streams).not.toMatch(/\bjson\b.*\bstdout\b/i)
 
         const missingFile = runCli(['--batch', join(fixtureDirectory, 'missing batch.json')])
         expect(missingFile.code).toBe(2)
