@@ -611,3 +611,21 @@ describe.each([
         expect(readdirSync(fixtureDirectory).sort()).toEqual(listing)
     })
 })
+
+it('propagates a non-CopyShapeError from the validator instead of turning it into an exit-2 diagnostic', async () => {
+    vi.doMock('@/domain/validation/batch', () => ({
+        validateCopyBatch: () => {
+            throw new Error('unexpected validator failure')
+        },
+    }))
+    vi.resetModules()
+    try {
+        const freshModule = (await import('./cli')) as CliModule
+        await expect(async () => freshModule.main(['--batch', saveBatch(allValidBatch)])).rejects.toThrow(
+            'unexpected validator failure'
+        )
+    } finally {
+        vi.doUnmock('@/domain/validation/batch')
+        vi.resetModules()
+    }
+})
