@@ -381,6 +381,22 @@ function helperRowCells(section: DocSection, symbol: string): string[] {
     return (matched[0] ?? '').split('|').map((cell) => cell.trim())
 }
 
+// Isolates the single sentence documenting the CopyShapeError failure list so failure and
+// no-partial-output assertions cannot be satisfied by unrelated prose elsewhere in the section.
+function copyShapeErrorSentence(section: DocSection): string {
+    const match = /`validateCopyBatch` throws `CopyShapeError`[\s\S]*?\./.exec(section.body)
+    expect(match, 'the batch section must state one CopyShapeError sentence listing every shape failure').not.toBeNull()
+    return match?.[0] ?? ''
+}
+
+// Isolates the paragraph documenting parseCopyBatch so the internal/unsupported assertions
+// cannot be satisfied by unrelated prose elsewhere in the section.
+function parseCopyBatchParagraph(section: DocSection): string {
+    const matched = section.body.split(/\n{2,}/).filter((paragraph) => /parseCopyBatch/.test(paragraph))
+    expect(matched, 'the batch section must hold exactly one paragraph documenting parseCopyBatch').toHaveLength(1)
+    return matched[0] ?? ''
+}
+
 describe('documented batch interface in docs/reference/copy-limits.md', () => {
     it('documents the validateCopyBatch import and exactly two json blocks, the input then its result', () => {
         const section = copyLimitsBatchSection(readCopyLimitsDocument())
@@ -426,38 +442,41 @@ describe('documented batch interface in docs/reference/copy-limits.md', () => {
     })
 
     it('lists every batch shape failure that raises CopyShapeError and the no-partial-output guarantee', () => {
-        const {body} = copyLimitsBatchSection(readCopyLimitsDocument())
-        expect(body).toMatch(/CopyShapeError/)
+        const section = copyLimitsBatchSection(readCopyLimitsDocument())
+        expect(section.body).toMatch(/CopyShapeError/)
+        const sentence = copyShapeErrorSentence(section)
 
         const failures: [string, RegExp][] = [
-            ['a non-object root', /(root|top-level)[^.]*object|object[^.]*(root|top-level)/i],
-            ['a non-array entries value', /entries[^.]*array|array[^.]*entries/i],
+            ['a non-object root', /(root|top-level)[^,—]*object|object[^,—]*(root|top-level)/i],
+            ['a non-array entries value', /entries[^,—]*array|array[^,—]*entries/i],
             ['an empty batch', /empty batch|zero entries|no entries|at least one entry/i],
-            ['a blank id', /(blank|empty|whitespace)[^.]*\bid|\bid\b[^.]*(blank|empty|whitespace)/i],
-            ['a duplicate id', /duplicate[^.]*\bid|\bid\b[^.]*duplicate/i],
-            ['a malformed entry', /(malformed|invalid)[^.]*entr|entr\w*[^.]*(malformed|invalid)/i],
+            ['a blank id', /(blank|empty|whitespace)[^,—]*\bid|\bid\b[^,—]*(blank|empty|whitespace)/i],
+            ['a duplicate id', /duplicate[^,—]*\bid|\bid\b[^,—]*duplicate/i],
+            ['a malformed entry', /(malformed|invalid)[^,—]*entr|entr\w*[^,—]*(malformed|invalid)/i],
         ]
         for (const [label, pattern] of failures) {
-            expect(body, `the copy-limits batch section must document ${label} as a CopyShapeError failure`).toMatch(
-                pattern
-            )
+            expect(sentence, `the CopyShapeError sentence must document ${label} as a shape failure`).toMatch(pattern)
         }
 
-        expect(body, 'the batch section must record that a malformed batch yields no partial results').toMatch(
-            /(no|never|not)[^.]*partial|partial[^.]*(no|never|not)/i
+        expect(
+            sentence,
+            'the CopyShapeError sentence must record that a malformed batch yields no partial results'
+        ).toMatch(
+            /\b(?:no|never|not)\b(?:\s+\S+){0,3}\s+partial\s+results\b|\bpartial\s+results\b(?:\s+\S+){0,3}\s+(?:no|never|not)\b/i
         )
     })
 
     it('names validateCopyBatch and BatchValidationResult in the exported-helpers table and marks parseCopyBatch internal', () => {
         const markdown = readCopyLimitsDocument()
         const helpers = exportedHelpersSection(markdown)
-        expect(helperRowCells(helpers, 'validateCopyBatch')[2] ?? '').toMatch(/batch/i)
-        expect(helperRowCells(helpers, 'BatchValidationResult')[2] ?? '').toMatch(/result|valid/i)
+        expect(helperRowCells(helpers, 'validateCopyBatch')[2] ?? '').toMatch(/\bvalidate\b[\s\S]*\bbatch\b/i)
+        expect(helperRowCells(helpers, 'BatchValidationResult')[2] ?? '').toMatch(/\btype of\b[\s\S]*\bresult\b/i)
 
-        const {body} = copyLimitsBatchSection(markdown)
-        expect(body).toMatch(/parseCopyBatch/)
-        expect(body, 'the batch section must mark parseCopyBatch internal').toMatch(/internal/i)
-        expect(body, 'the batch section must tell callers not to use parseCopyBatch').toMatch(
+        const section = copyLimitsBatchSection(markdown)
+        expect(section.body).toMatch(/parseCopyBatch/)
+        const paragraph = parseCopyBatchParagraph(section)
+        expect(paragraph, 'the parseCopyBatch paragraph must mark it internal').toMatch(/internal/i)
+        expect(paragraph, 'the parseCopyBatch paragraph must tell callers not to use it').toMatch(
             /should not|do not|is not (a )?supported|not (a )?supported|is not part of/i
         )
     })

@@ -61,8 +61,7 @@ files are never changed.
 
 Import `validateCopyBatch` and `BatchValidationResult` from `@/domain/validation/batch`.
 `validateCopyBatch(input: unknown): BatchValidationResult` checks a named batch of copies
-against the same shape and platform rules as `validateCopy` above, and is the only symbol
-from that module the CLI and this reference document use.
+against the same shape and platform rules as `validateCopy` above.
 
 The input is an object holding an `entries` array of at least one entry, each with an `id`,
 a `platform` and a `copy` shaped per that platform's single-file rules. Each entry's `id`
