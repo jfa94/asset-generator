@@ -57,6 +57,70 @@ The command emits the same result plus a newline: exit `0` for valid copy,
 has empty stdout and a concise stderr diagnostic without a stack trace. Input
 files are never changed.
 
+## Validate a batch of saved copy
+
+Import `validateCopyBatch` and `BatchValidationResult` from `@/domain/validation/batch`.
+`validateCopyBatch(input: unknown): BatchValidationResult` checks a named batch of copies
+against the same shape and platform rules as `validateCopy` above, and is the only symbol
+from that module the CLI and this reference document use.
+
+The input is an object holding an `entries` array of at least one entry, each with an `id`,
+a `platform` and a `copy` shaped per that platform's single-file rules. Each entry's `id`
+must be a string that is nonempty after trimming, and ids must be unique by exact comparison
+(no trimming, casing or Unicode normalization); results echo the `id` verbatim, in input
+order, never trimmed or normalized.
+
+```json
+{
+    "entries": [
+        {
+            "id": "rsa-privacy",
+            "platform": "rsa",
+            "copy": {
+                "headlines": ["Own your privacy", "No renewals, ever", "Data brokers, gone"],
+                "descriptions": ["Buy once and keep control.", "Remove your personal data."],
+                "paths": []
+            }
+        },
+        {
+            "id": "meta-privacy",
+            "platform": "meta",
+            "copy": {
+                "primaryTexts": ["Keep your data private."],
+                "headlines": ["Own your privacy"],
+                "descriptions": ["One purchase"]
+            }
+        }
+    ]
+}
+```
+
+```json
+{
+    "valid": true,
+    "results": [
+        {"id": "rsa-privacy", "platform": "rsa", "valid": true, "issues": []},
+        {"id": "meta-privacy", "platform": "meta", "valid": true, "issues": []}
+    ]
+}
+```
+
+The result holds exactly `valid` and `results`, one result per entry in input order, each
+carrying `id`, `platform`, `valid` and `issues`; the aggregate `valid` is true exactly when
+every entry result is valid. Every well-shaped entry is validated (collect-all, never
+fail-fast), and validation is deterministic and does not change the input, including deeply
+frozen batches.
+
+`validateCopyBatch` throws `CopyShapeError` when the root is not an object, when `entries`
+is not an array, when the batch is empty (at least one entry is required), when an id is
+blank, when an id is duplicated, or when an entry is malformed (bad platform or copy shape)
+— each failure happens within one left-to-right shape pass, and a malformed batch never
+returns partial results, so no output is produced for a shape failure.
+
+The gate function `parseCopyBatch` (also exported from `@/domain/validation/batch`) is an
+internal seam used by the domain's own tests; it is not a supported caller surface and
+application code should not call it directly — use `validateCopyBatch` instead.
+
 ## Character counting
 
 Character counts use Unicode grapheme segmentation (`Intl.Segmenter`), not UTF-16
@@ -118,13 +182,15 @@ block prefixed with the campaign slug and platform, e.g.
 
 ## Exported helpers
 
-| Symbol                 | Purpose                                                             |
-| ---------------------- | ------------------------------------------------------------------- |
-| `charCount(s)`         | Grapheme-aware character count.                                     |
-| `isNearDuplicate(a,b)` | Whether two strings are near-duplicates by the rule above.          |
-| `validateRsa(copy)`    | Validate an `RsaCopy`.                                              |
-| `validatePmax(copy)`   | Validate a `PmaxCopy`.                                              |
-| `validateMeta(copy)`   | Validate a `MetaCopy`.                                              |
-| `validateCopy(input)`  | Check unknown input shape and return platform, validity and issues. |
-| `CopyShapeError`       | Distinguishable error for malformed input.                          |
-| `CopyValidationResult` | Type of the shared platform/valid/issues result.                    |
+| Symbol                     | Purpose                                                                    |
+| -------------------------- | -------------------------------------------------------------------------- |
+| `charCount(s)`             | Grapheme-aware character count.                                            |
+| `isNearDuplicate(a,b)`     | Whether two strings are near-duplicates by the rule above.                 |
+| `validateRsa(copy)`        | Validate an `RsaCopy`.                                                     |
+| `validatePmax(copy)`       | Validate a `PmaxCopy`.                                                     |
+| `validateMeta(copy)`       | Validate a `MetaCopy`.                                                     |
+| `validateCopy(input)`      | Check unknown input shape and return platform, validity and issues.        |
+| `CopyShapeError`           | Distinguishable error for malformed input.                                 |
+| `CopyValidationResult`     | Type of the shared platform/valid/issues result.                           |
+| `validateCopyBatch(input)` | Validate a named batch and return ordered results plus aggregate validity. |
+| `BatchValidationResult`    | Type of the batch validation result (`valid` + `results`).                 |
