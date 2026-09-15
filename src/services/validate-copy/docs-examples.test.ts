@@ -392,7 +392,7 @@ function copyShapeErrorSentence(section: DocSection): string {
 // Isolates the paragraph documenting parseCopyBatch so the internal/unsupported assertions
 // cannot be satisfied by unrelated prose elsewhere in the section.
 function parseCopyBatchParagraph(section: DocSection): string {
-    const matched = section.body.split(/\n{2,}/).filter((paragraph) => /parseCopyBatch/.test(paragraph))
+    const matched = section.body.split(/\n{2,}/).filter((paragraph) => paragraph.includes('parseCopyBatch'))
     expect(matched, 'the batch section must hold exactly one paragraph documenting parseCopyBatch').toHaveLength(1)
     return matched[0] ?? ''
 }
@@ -462,7 +462,7 @@ describe('documented batch interface in docs/reference/copy-limits.md', () => {
             sentence,
             'the CopyShapeError sentence must record that a malformed batch yields no partial results'
         ).toMatch(
-            /\b(?:no|never|not)\b(?:\s+\S+){0,3}\s+partial\s+results\b|\bpartial\s+results\b(?:\s+\S+){0,3}\s+(?:no|never|not)\b/i
+            /\b(?:no|never|not)\b[^.]{0,40}\bpartial\s+results\b|\bpartial\s+results\b[^.]{0,40}\b(?:no|never|not)\b/i
         )
     })
 
