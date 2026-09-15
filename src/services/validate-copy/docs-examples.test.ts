@@ -199,8 +199,9 @@ describe('documented --batch examples in docs/reference/commands.md', () => {
 
     it('documents exit 0, 1 and 2 for the batch command, and exit 2 really leaves stdout empty', () => {
         const section = batchSection(readCommandsDocument())
-        expect(exitCodeRow(section, '0')).toMatch(/valid/i)
-        expect(exitCodeRow(section, '1')).toMatch(/violates platform rules/i)
+        expect(exitCodeRow(section, '0')).toMatch(/\bevery entry is valid\b/i)
+        expect(exitCodeRow(section, '0')).not.toMatch(/invalid/i)
+        expect(exitCodeRow(section, '1')).toMatch(/\bviolates platform rules\b/i)
         const failureRow = exitCodeRow(section, '2')
         expect(failureRow).toMatch(/usage/i)
         expect(failureRow).toMatch(/json/i)
