@@ -553,12 +553,14 @@ describe.each([
         const missing = join(fixtureDirectory, 'missing batch.json')
         const batchResult = await run(['--batch', missing])
         expectDiagnostic(batchResult)
+        expect(batchResult.stderr).toBe('Unable to read copy file.\n')
         expect(batchResult).toEqual(await run([missing]))
     })
 
     it('reports a directory batch path exactly as the shipped single-file command does', async () => {
         const batchResult = await run(['--batch', fixtureDirectory])
         expectDiagnostic(batchResult)
+        expect(batchResult.stderr).toBe('Unable to read copy file.\n')
         expect(batchResult).toEqual(await run([fixtureDirectory]))
     })
 
@@ -567,6 +569,7 @@ describe.each([
         writeFileSync(path, '{"entries":[{"id":"rsa-one",', 'utf8')
         const batchResult = await run(['--batch', path])
         expectDiagnostic(batchResult)
+        expect(batchResult.stderr).toBe('Copy file must contain valid JSON.\n')
         expect(batchResult).toEqual(await run([path]))
     })
 
