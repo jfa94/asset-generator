@@ -629,3 +629,158 @@ it('propagates a non-CopyShapeError from the validator instead of turning it int
         vi.resetModules()
     }
 })
+
+// --- batch-005: package-script batch runs and repeat-run immutability evidence ---
+
+interface SinglePayload {
+    platform: string
+    valid: boolean
+    issues: CopyIssue[]
+}
+
+const packageScriptTimeout = 20000
+
+/** Runs the shipped `pnpm --silent validate-copy` package script with the supplied argument vector. */
+function runPackageScript(args: string[]): CommandResult {
+    // Literal package-manager executable and command, fixture paths as arguments; no shell.
+
+    const result = spawnSync('pnpm', ['--silent', 'validate-copy', ...args], {
+        cwd: projectRoot,
+        // Stryker links installed dependencies; package tests must not reinstall that shared tree.
+        env: {...process.env, pnpm_config_verify_deps_before_run: 'false'},
+        encoding: 'utf8',
+        timeout: 15000,
+    })
+    if (result.error !== undefined) {
+        throw result.error
+    }
+    expect(result.signal).toBeNull()
+    return {code: result.status, stdout: result.stdout, stderr: result.stderr}
+}
+
+describe('package script --batch runs [batch-005]', () => {
+    it(
+        'exits 0 and prints exactly the validateCopyBatch JSON plus one newline for an all-valid batch',
+        () => {
+            const path = saveBatch(allValidBatch)
+            const parsedFile = JSON.parse(readFileSync(path, 'utf8')) as unknown
+            const result = runPackageScript(['--batch', path])
+            expect(result).toEqual({code: 0, stdout: `${JSON.stringify(allValidPayload)}\n`, stderr: ''})
+            expect(result.stdout).toBe(`${JSON.stringify(validateCopyBatch(parsedFile))}\n`)
+            expect(result.stdout.split('\n')).toHaveLength(2)
+            expect(parseBatchPayload(result.stdout).valid).toBe(true)
+        },
+        packageScriptTimeout
+    )
+
+    it(
+        'exits 1 for a rule-violating batch and prints the payload the in-process adapter prints',
+        async () => {
+            const path = saveBatch(mixedBatch)
+            const script = runPackageScript(['--batch', path])
+            const adapter = await runAdapter(['--batch', path])
+            expect(script).toEqual({code: 1, stdout: `${JSON.stringify(mixedPayload)}\n`, stderr: ''})
+            expect(script.stdout).toBe(adapter.stdout)
+            const printed = parseBatchPayload(script.stdout)
+            expect(printed.results.map((entry) => entry.id)).toEqual(['zebra', 'alpha', 'middle'])
+            expect(printed.results.map((entry) => entry.issues.length)).toEqual([2, 0, 1])
+            expect(printed.valid).toBe(false)
+        },
+        packageScriptTimeout
+    )
+
+    it(
+        'exits 2 with empty stdout and a diagnostic when the batch file holds malformed JSON',
+        () => {
+            const path = join(fixtureDirectory, 'broken batch.json')
+            writeFileSync(path, '{"entries":[{"id":"rsa-one",', 'utf8')
+            const result = runPackageScript(['--batch', path])
+            expectDiagnostic(result)
+            expect(result.stderr).toContain('Copy file must contain valid JSON.')
+        },
+        packageScriptTimeout
+    )
+
+    it(
+        'exits 2 with empty stdout and the CopyShapeError message when the batch shape is invalid',
+        () => {
+            const path = saveBatch(duplicateIdBatch)
+            const result = runPackageScript(['--batch', path])
+            expectDiagnostic(result)
+            expect(result.stderr).toContain('entries[3].id is a duplicate identifier')
+        },
+        packageScriptTimeout
+    )
+})
+
+describe('single-file package script stays as shipped [batch-005]', () => {
+    it(
+        'exits 0 with the shipped stdout bytes for valid meta copy',
+        () => {
+            const path = saveInput(validInputs[2])
+            const script = runPackageScript([path])
+            expect(script).toEqual({
+                code: 0,
+                stdout: '{"platform":"meta","valid":true,"issues":[]}\n',
+                stderr: '',
+            })
+            expect(script.stdout).toBe(runNode([path]).stdout)
+        },
+        packageScriptTimeout
+    )
+
+    it(
+        'exits 1 with the shipped stdout bytes for copy that breaks a platform rule',
+        () => {
+            const path = saveInput({platform: 'meta', copy: oneIssueMetaCopy})
+            const script = runPackageScript([path])
+            expect(script.code).toBe(1)
+            expect(script.stderr).toBe('')
+            expect(JSON.parse(script.stdout) as SinglePayload).toEqual({
+                platform: 'meta',
+                valid: false,
+                issues: [{field: 'primaryTexts', message: 'needs 1-5 entries, got 0'}],
+            })
+            expect(script.stdout).toBe(`${JSON.stringify(JSON.parse(script.stdout))}\n`)
+            expect(script.stdout).toBe(runNode([path]).stdout)
+        },
+        packageScriptTimeout
+    )
+
+    it(
+        'exits 2 with empty stdout for a shape-invalid single copy file',
+        () => {
+            const script = runPackageScript([saveInput(null)])
+            expectDiagnostic(script)
+            expect(script.stderr).toContain('input must be an object')
+        },
+        packageScriptTimeout
+    )
+})
+
+describe('repeated batch runs through the actual entry point [batch-005]', () => {
+    it('gives byte-identical stdout twice for a rule-violating batch and writes no file', () => {
+        const path = saveBatch(mixedBatch)
+        const before = readFileSync(path)
+        const listing = readdirSync(fixtureDirectory).sort()
+        expect(listing).toEqual(['campaign batch.json'])
+        const first = runNode(['--batch', path])
+        const second = runNode(['--batch', path])
+        expect(first).toEqual({code: 1, stdout: `${JSON.stringify(mixedPayload)}\n`, stderr: ''})
+        expect(second).toEqual(first)
+        expect(readFileSync(path)).toEqual(before)
+        expect(readdirSync(fixtureDirectory).sort()).toEqual(listing)
+    })
+
+    it('gives byte-identical stdout twice for an all-valid batch and leaves the input bytes untouched', () => {
+        const path = saveBatch(allValidBatch)
+        const before = readFileSync(path)
+        const listing = readdirSync(fixtureDirectory).sort()
+        const first = runNode(['--batch', path])
+        const second = runNode(['--batch', path])
+        expect(first).toEqual({code: 0, stdout: `${JSON.stringify(allValidPayload)}\n`, stderr: ''})
+        expect(second).toEqual(first)
+        expect(readFileSync(path)).toEqual(before)
+        expect(readdirSync(fixtureDirectory).sort()).toEqual(listing)
+    })
+})
