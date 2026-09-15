@@ -397,11 +397,30 @@ function parseCopyBatchParagraph(section: DocSection): string {
     return matched[0] ?? ''
 }
 
+// Isolates the sentence importing validateCopyBatch so the import-path assertion cannot be
+// satisfied by the symbol and the module path appearing in unrelated prose elsewhere.
+function importSentence(section: DocSection): string {
+    const match = /\bImport\b[\s\S]*?\./.exec(section.body)
+    expect(match, 'the batch section must state one Import sentence naming validateCopyBatch').not.toBeNull()
+    return match?.[0] ?? ''
+}
+
+// Isolates the sentence documenting the id rules so the uniqueness/no-normalization assertion
+// cannot be satisfied by unrelated prose elsewhere in the section.
+function idRulesSentence(section: DocSection): string {
+    const match = /Each entry's `id`[\s\S]*?\./.exec(section.body)
+    expect(match, 'the batch section must state one sentence documenting the id rules').not.toBeNull()
+    return match?.[0] ?? ''
+}
+
 describe('documented batch interface in docs/reference/copy-limits.md', () => {
     it('documents the validateCopyBatch import and exactly two json blocks, the input then its result', () => {
         const section = copyLimitsBatchSection(readCopyLimitsDocument())
-        expect(section.body).toMatch(/validateCopyBatch/)
-        expect(section.body).toMatch(/@\/domain\/validation\/batch/)
+        const sentence = importSentence(section)
+        expect(sentence, 'the Import sentence must name validateCopyBatch').toMatch(/validateCopyBatch/)
+        expect(sentence, 'the Import sentence must name the @/domain/validation/batch module').toMatch(
+            /@\/domain\/validation\/batch/
+        )
 
         const blocks = jsonFences(section.body)
         expect(blocks, copyLimitsBatchBlockContract).toHaveLength(2)
@@ -427,7 +446,8 @@ describe('documented batch interface in docs/reference/copy-limits.md', () => {
     })
 
     it('states the identifier rules and that results echo ids verbatim in input order', () => {
-        const {body} = copyLimitsBatchSection(readCopyLimitsDocument())
+        const section = copyLimitsBatchSection(readCopyLimitsDocument())
+        const {body} = section
         expect(body, 'the batch section must require string ids').toMatch(
             /\bid\b[^.]*\bstring\b|\bstring\b[^.]*\bid\b/i
         )
@@ -439,6 +459,12 @@ describe('documented batch interface in docs/reference/copy-limits.md', () => {
         )
         expect(body, 'the batch section must say results echo ids verbatim').toMatch(/verbatim/i)
         expect(body, 'the batch section must say results follow input order').toMatch(/input order/i)
+
+        const idSentence = idRulesSentence(section)
+        expect(
+            idSentence,
+            'the id rules sentence must state uniqueness ignores trimming, casing and normalization'
+        ).toMatch(/no trimming|no .*normaliz|without (?:trimming|normaliz)/i)
     })
 
     it('lists every batch shape failure that raises CopyShapeError and the no-partial-output guarantee', () => {
@@ -462,7 +488,7 @@ describe('documented batch interface in docs/reference/copy-limits.md', () => {
             sentence,
             'the CopyShapeError sentence must record that a malformed batch yields no partial results'
         ).toMatch(
-            /\b(?:no|never|not)\b[^.]{0,40}\bpartial\s+results\b|\bpartial\s+results\b[^.]{0,40}\b(?:no|never|not)\b/i
+            /\b(?:no|never|not)\b(?:\W+partial results\b|\W+\w+\W+partial results\b|\W+\w+\W+\w+\W+partial results\b)/i
         )
     })
 
