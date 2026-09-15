@@ -96,6 +96,118 @@ Extra fields are ignored. Repeated validation preserves input bytes and produces
 identical results. These stream guarantees describe the CLI itself; use the
 silent pnpm invocation above to suppress the package manager's own output.
 
+## Validate a batch of saved copy
+
+```bash
+pnpm validate-copy --batch "campaign batch.json"
+# Suppress pnpm's script-launch chatter for machine-readable stdout:
+pnpm --silent validate-copy --batch "campaign batch.json"
+```
+
+The command reads one UTF-8 JSON file holding a named batch of copies and
+validates every entry through the same [copy validator and limits](copy-limits.md)
+used by the single-file command above. The single-file command is unchanged.
+It writes no files and does not change campaigns or runs. Missing or extra
+arguments and unsupported options are usage errors. For filenames beginning
+with `-`, use a relative path such as `./-batch.json`.
+
+A batch input is an object holding an `entries` array of at least one entry,
+each with a unique nonempty (after trimming) `id`, a `platform` and a `copy`
+shaped per that platform's single-file rules:
+
+```json
+{
+    "entries": [
+        {
+            "id": "rsa-privacy",
+            "platform": "rsa",
+            "copy": {
+                "headlines": ["Own your privacy", "No renewals, ever", "Data brokers, gone"],
+                "descriptions": ["Buy once and keep control.", "Remove your personal data."],
+                "paths": []
+            }
+        },
+        {
+            "id": "meta-privacy",
+            "platform": "meta",
+            "copy": {
+                "primaryTexts": ["Keep your data private."],
+                "headlines": ["Own your privacy"],
+                "descriptions": ["One purchase"]
+            }
+        }
+    ]
+}
+```
+
+Every entry is well-shaped and passes platform rules, so stdout is:
+
+```json
+{
+    "valid": true,
+    "results": [
+        {"id": "rsa-privacy", "platform": "rsa", "valid": true, "issues": []},
+        {"id": "meta-privacy", "platform": "meta", "valid": true, "issues": []}
+    ]
+}
+```
+
+For a batch where one entry's copy breaks platform rules (here Meta's
+`primaryTexts` is empty), every well-shaped entry is still validated
+(collect-all, not fail-fast), in input order:
+
+```json
+{
+    "entries": [
+        {
+            "id": "rsa-privacy",
+            "platform": "rsa",
+            "copy": {
+                "headlines": ["Own your privacy", "No renewals, ever", "Data brokers, gone"],
+                "descriptions": ["Buy once and keep control.", "Remove your personal data."],
+                "paths": []
+            }
+        },
+        {
+            "id": "meta-empty",
+            "platform": "meta",
+            "copy": {
+                "primaryTexts": [],
+                "headlines": ["Own your privacy"],
+                "descriptions": ["One purchase"]
+            }
+        }
+    ]
+}
+```
+
+```json
+{
+    "valid": false,
+    "results": [
+        {"id": "rsa-privacy", "platform": "rsa", "valid": true, "issues": []},
+        {
+            "id": "meta-empty",
+            "platform": "meta",
+            "valid": false,
+            "issues": [{"field": "primaryTexts", "message": "needs 1-5 entries, got 0"}]
+        }
+    ]
+}
+```
+
+| Exit code | Meaning                                                              | Streams                                                                      |
+| --------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `0`       | Every entry is valid.                                                | JSON batch result on stdout; empty stderr.                                   |
+| `1`       | Batch is well-shaped but at least one entry violates platform rules. | JSON batch result with ordered field/message issues on stdout; empty stderr. |
+| `2`       | Bad usage, unreadable file, malformed JSON or invalid batch shape.   | Empty stdout; concise diagnostic on stderr without a stack trace.            |
+
+An empty `entries` array, a blank or duplicate `id`, a non-object entry or an
+entry whose `platform`/`copy` breaks the single-file shape rules are shape
+errors, not ordinary rule issues: the batch throws on the first one, in
+left-to-right order, and no partial results are printed. Repeated validation
+of one batch file preserves input bytes and produces identical results.
+
 ## Quality commands
 
 | Command              | Description                                                                |
