@@ -6,6 +6,7 @@ import {tmpdir} from 'node:os'
 import {join, resolve} from 'node:path'
 import {pathToFileURL} from 'node:url'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
+import {validateCopyBatch} from '@/domain/validation/batch'
 
 interface CommandResult {
     code: number | null
@@ -297,4 +298,192 @@ describe('documented single-file examples in docs/reference/commands.md', () => 
         expect(rejected.code).toBe(1)
         expect(parseJson(rejected.stdout)).toEqual(parseJson(blocks[4] ?? ''))
     }, 30000)
+})
+
+// --- batch-007: the documented batch interface (docs/reference/copy-limits.md) and the
+// --- architecture note (docs/architecture/overview.md).
+
+const copyLimitsDocumentPath = join(projectRoot, 'docs/reference/copy-limits.md')
+const architectureDocumentPath = join(projectRoot, 'docs/architecture/overview.md')
+
+const copyLimitsBatchBlockContract =
+    'the batch section of docs/reference/copy-limits.md must hold exactly two fenced json blocks in document order: the batch input then its result'
+
+function readCopyLimitsDocument(): string {
+    return readFileSync(copyLimitsDocumentPath, 'utf8')
+}
+
+function readArchitectureDocument(): string {
+    return readFileSync(architectureDocumentPath, 'utf8')
+}
+
+function h3Sections(markdown: string): DocSection[] {
+    return markdown
+        .split(/^### /m)
+        .slice(1)
+        .map((chunk) => {
+            const breakIndex = chunk.indexOf('\n')
+            if (breakIndex === -1) {
+                return {heading: chunk.trim(), body: ''}
+            }
+            return {heading: chunk.slice(0, breakIndex).trim(), body: chunk.slice(breakIndex + 1)}
+        })
+}
+
+function namedSection(sections: DocSection[], pattern: RegExp, requirement: string): DocSection {
+    const matched = sections.filter((section) => pattern.test(section.heading))
+    expect(
+        matched.map((section) => section.heading),
+        requirement
+    ).toHaveLength(1)
+    return matched[0] ?? {heading: '', body: ''}
+}
+
+function copyLimitsBatchSection(markdown: string): DocSection {
+    return namedSection(
+        h2Sections(markdown),
+        /batch/i,
+        'docs/reference/copy-limits.md must hold exactly one "## " section documenting the batch interface'
+    )
+}
+
+function exportedHelpersSection(markdown: string): DocSection {
+    return namedSection(
+        h2Sections(markdown),
+        /exported helpers/i,
+        'docs/reference/copy-limits.md must keep exactly one "## Exported helpers" section'
+    )
+}
+
+function savedCopyArchitectureSection(markdown: string): DocSection {
+    return namedSection(
+        h3Sections(markdown),
+        /validate-copy|saved-copy/i,
+        'docs/architecture/overview.md must hold exactly one "### " section for the validate-copy service'
+    )
+}
+
+function copyLimitsBatchJsonBlocks(markdown: string): string[] {
+    const blocks = jsonFences(copyLimitsBatchSection(markdown).body)
+    expect(blocks, copyLimitsBatchBlockContract).toHaveLength(2)
+    return blocks
+}
+
+// Reads one "| `symbol` | purpose |" row of the exported-helpers table, matching on the
+// symbol cell alone so a mention inside another row's prose cannot satisfy the assertion.
+function helperRowCells(section: DocSection, symbol: string): string[] {
+    const rows = section.body.split('\n').filter((line) => line.startsWith('|'))
+    const matched = rows.filter((row) => (row.split('|')[1] ?? '').includes(symbol))
+    expect(
+        matched,
+        `the exported-helpers table of docs/reference/copy-limits.md must hold exactly one row naming ${symbol}`
+    ).toHaveLength(1)
+    return (matched[0] ?? '').split('|').map((cell) => cell.trim())
+}
+
+describe('documented batch interface in docs/reference/copy-limits.md', () => {
+    it('documents the validateCopyBatch import and exactly two json blocks, the input then its result', () => {
+        const section = copyLimitsBatchSection(readCopyLimitsDocument())
+        expect(section.body).toMatch(/validateCopyBatch/)
+        expect(section.body).toMatch(/@\/domain\/validation\/batch/)
+
+        const blocks = jsonFences(section.body)
+        expect(blocks, copyLimitsBatchBlockContract).toHaveLength(2)
+
+        const entries = entriesOf(blocks[0] ?? '')
+        expect(entries.length).toBeGreaterThanOrEqual(2)
+
+        const documented = asRecord(parseJson(blocks[1] ?? ''), 'the documented copy-limits batch result')
+        expect(Object.keys(documented)).toEqual(['valid', 'results'])
+        expect(asArray(documented['results'], 'the documented copy-limits "results"')).toHaveLength(entries.length)
+    })
+
+    it('evaluates the documented batch input through validateCopyBatch and matches the documented result', () => {
+        const blocks = copyLimitsBatchJsonBlocks(readCopyLimitsDocument())
+        const documented = asRecord(parseJson(blocks[1] ?? ''), 'the documented copy-limits batch result')
+
+        expect(validateCopyBatch(parseJson(blocks[0] ?? ''))).toEqual(documented)
+
+        const results = asArray(documented['results'], 'the documented copy-limits "results"').map((entry, index) =>
+            asRecord(entry, `results[${String(index)}]`)
+        )
+        expect(results.map((entry) => entry['id'])).toEqual(entriesOf(blocks[0] ?? '').map((entry) => entry['id']))
+    })
+
+    it('states the identifier rules and that results echo ids verbatim in input order', () => {
+        const {body} = copyLimitsBatchSection(readCopyLimitsDocument())
+        expect(body, 'the batch section must require string ids').toMatch(
+            /\bid\b[^.]*\bstring\b|\bstring\b[^.]*\bid\b/i
+        )
+        expect(body, 'the batch section must require ids nonempty after trimming').toMatch(
+            /(nonempty|non-empty|not empty)[^.]*trim|trim[^.]*(nonempty|non-empty|not empty)/i
+        )
+        expect(body, 'the batch section must require ids unique by exact comparison').toMatch(
+            /uniqu\w*[^.]*exact|exact\w*[^.]*uniqu/i
+        )
+        expect(body, 'the batch section must say results echo ids verbatim').toMatch(/verbatim/i)
+        expect(body, 'the batch section must say results follow input order').toMatch(/input order/i)
+    })
+
+    it('lists every batch shape failure that raises CopyShapeError and the no-partial-output guarantee', () => {
+        const {body} = copyLimitsBatchSection(readCopyLimitsDocument())
+        expect(body).toMatch(/CopyShapeError/)
+
+        const failures: [string, RegExp][] = [
+            ['a non-object root', /(root|top-level)[^.]*object|object[^.]*(root|top-level)/i],
+            ['a non-array entries value', /entries[^.]*array|array[^.]*entries/i],
+            ['an empty batch', /empty batch|zero entries|no entries|at least one entry/i],
+            ['a blank id', /(blank|empty|whitespace)[^.]*\bid|\bid\b[^.]*(blank|empty|whitespace)/i],
+            ['a duplicate id', /duplicate[^.]*\bid|\bid\b[^.]*duplicate/i],
+            ['a malformed entry', /(malformed|invalid)[^.]*entr|entr\w*[^.]*(malformed|invalid)/i],
+        ]
+        for (const [label, pattern] of failures) {
+            expect(body, `the copy-limits batch section must document ${label} as a CopyShapeError failure`).toMatch(
+                pattern
+            )
+        }
+
+        expect(body, 'the batch section must record that a malformed batch yields no partial results').toMatch(
+            /(no|never|not)[^.]*partial|partial[^.]*(no|never|not)/i
+        )
+    })
+
+    it('names validateCopyBatch and BatchValidationResult in the exported-helpers table and marks parseCopyBatch internal', () => {
+        const markdown = readCopyLimitsDocument()
+        const helpers = exportedHelpersSection(markdown)
+        expect(helperRowCells(helpers, 'validateCopyBatch')[2] ?? '').toMatch(/batch/i)
+        expect(helperRowCells(helpers, 'BatchValidationResult')[2] ?? '').toMatch(/result|valid/i)
+
+        const {body} = copyLimitsBatchSection(markdown)
+        expect(body).toMatch(/parseCopyBatch/)
+        expect(body, 'the batch section must mark parseCopyBatch internal').toMatch(/internal/i)
+        expect(body, 'the batch section must tell callers not to use parseCopyBatch').toMatch(
+            /should not|do not|is not (a )?supported|not (a )?supported|is not part of/i
+        )
+    })
+
+    it('fails loudly when the copy-limits batch section holds fewer than two json blocks', () => {
+        const truncated = [
+            '# Reference: copy limits',
+            '',
+            '## Validate a batch of saved copy',
+            '',
+            '```json',
+            '{"entries": []}',
+            '```',
+            '',
+        ].join('\n')
+        expect(jsonFences(copyLimitsBatchSection(truncated).body)).toHaveLength(1)
+        expect(() => copyLimitsBatchJsonBlocks(truncated)).toThrow(/exactly two fenced json blocks/i)
+    })
+})
+
+describe('documented batch mode in docs/architecture/overview.md', () => {
+    it('describes the validate-copy service as validating one copy file or a named batch file', () => {
+        const {body} = savedCopyArchitectureSection(readArchitectureDocument())
+        expect(body, 'the saved-copy section must mention the named-batch mode').toMatch(/named batch/i)
+        expect(body, 'the saved-copy section must keep the single-file mode').toMatch(/(one|a single)\b[^.]*\bfile\b/i)
+        expect(body, 'the saved-copy section must credit the shared domain interface').toMatch(/domain/i)
+        expect(body).toMatch(/validate-copy/i)
+    })
 })
