@@ -1,4 +1,4 @@
-import {defineConfig} from 'vitest/config'
+import {configDefaults, defineConfig} from 'vitest/config'
 import path from 'path'
 
 export default defineConfig({
@@ -8,6 +8,7 @@ export default defineConfig({
         globals: true,
         environment: 'happy-dom',
         include: ['**/*.test.tsx', 'src/**/*.test.ts', 'src/**/*.spec.ts'],
+        exclude: [...configDefaults.exclude, '.claude/**'],
         coverage: {
             provider: 'v8',
             enabled: true,
