@@ -38,7 +38,10 @@ jobs:
         # the factory: `factory scaffold` replaces the marker below with a real `env:`
         # block rendered from quality.gateEnv (set via `factory configure`). Placeholders
         # only — real secrets stay in ${{ secrets.* }}. An empty gateEnv leaves the marker.
-        # factory:gate-env
+        env:
+          NEXT_PUBLIC_SUPABASE_KEY: "ci-placeholder-anon-key"
+          NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321"
+          SUPABASE_SERVICE_ROLE_KEY: "ci-placeholder-service-role-key"
       - run: pnpm deps:validate
       - name: pnpm audit (non-blocking; pnpm legacy endpoint 410, Snyk covers vulns)
         run: pnpm audit --audit-level=high
@@ -71,11 +74,8 @@ jobs:
           extra_args: --only-verified
 
   # PR mutation verdict (hunk-scoped 2026-08-07):
-  #   Runs ONLY on PRs targeting develop (the rollup — the merge point it
-  #     actually gates). Task PRs into staging-* skip it: the factory's local
-  #     per-task gate already enforced mutation pre-merge, nothing waits on the
-  #     CI result there (stagingRequiredStatusChecks is empty), and PR-scoped
-  #     caches can't warm anything downstream.
+  #   Runs on the feature PR into the base branch (the only trigger above),
+  #     after the Quality job succeeds.
   #   The managed helper diffs with zero context. Added files mutate in full;
   #     modified/deletion-seam hunks are padded two lines and merged, so the
   #     threshold grades code the PR changed instead of every touched file.
@@ -149,6 +149,7 @@ jobs:
         if: steps.slice.outputs.slice != ''
         env:
           SLICE: ${{ steps.slice.outputs.slice }}
+          pnpm_config_verify_deps_before_run: "false" # Stryker's sandbox symlinks node_modules; stop pnpm reinstalling there
         run: |
           pnpm exec stryker run \
               --mutate "$SLICE" \
@@ -180,9 +181,8 @@ jobs:
         run: |
           echo "mutation-scope: $SCOPE_RESULT"
           echo "mutation:       $MUTATION_RESULT"
-          # Scope skipped = PR does not target develop (mutation runs on the
-          # rollup only); the aggregator reports green so the universal check
-          # name stays satisfiable everywhere.
+          # Scope skipped = an upstream job (Quality) did not succeed; that job
+          # already reports the failure, so the aggregator stays green.
           if [[ "$SCOPE_RESULT" == "skipped" ]]; then
             echo "Mutation testing skipped (PR does not target develop)."
             exit 0
