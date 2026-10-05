@@ -8,7 +8,7 @@ export default defineConfig({
         globals: true,
         environment: 'happy-dom',
         include: ['**/*.test.tsx', 'src/**/*.test.ts', 'src/**/*.spec.ts'],
-        exclude: [...configDefaults.exclude, '.claude/**'],
+        exclude: [...configDefaults.exclude, '.claude/**', '.stryker-tmp/**'],
         coverage: {
             provider: 'v8',
             enabled: true,
