@@ -76,6 +76,14 @@ exit codes; the domain remains pure, and validation does not modify run state.
 See the [copy reference](../reference/copy-limits.md) and
 [command reference](../reference/commands.md#validate-saved-copy) for the contracts.
 
+## Format catalogue
+
+`src/domain/formatCatalogue.ts` is a pure read-only view over `AD_FORMATS`. It
+returns fresh `FormatSpec` objects with reduced aspect ratios and optional safe
+zones, and rejects unknown platforms with `UnknownPlatformError`. The
+`formats` command (`src/services/formats/cli.ts`) owns argument parsing, output
+and exit codes on top of it. See [ad formats](../reference/ad-formats.md#list-formats-from-the-cli).
+
 ## Render pipeline
 
 The pipeline runs only at finalize; during review the cockpit previews the same

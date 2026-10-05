@@ -1,4 +1,4 @@
-<!-- last-documented: 9125d3e31d87f65713d2d4015a208e26c1170e65 -->
+<!-- last-documented: aadaa2f624f72e528d0dd447b8676f45ffe861e6 -->
 
 # Asset Generator
 
@@ -66,6 +66,9 @@ Saved RSA, PMax and Meta copy can also be validated independently of a run with
 for JSON input, output and exit codes, and the [copy reference](reference/copy-limits.md#validate-unknown-input)
 for the reusable validation interface.
 
+Ad format dimensions, reduced aspect ratios and safe zones can be listed with
+`pnpm formats [--platform <platform>] [--json]`. See [ad formats](reference/ad-formats.md#list-formats-from-the-cli).
+
 | Area                                                                           | Contents                                                   |
 | ------------------------------------------------------------------------------ | ---------------------------------------------------------- |
 | [Getting started](getting-started.md)                                          | Run your first end-to-end campaign generation              |
@@ -76,7 +79,7 @@ for the reusable validation interface.
 | [Guide: render images from the CLI](guides/render-from-cli.md)                 | Run the renderer directly from a `jobs.json`               |
 | [Reference: run state](reference/run-state.md)                                 | `run.json` schema, statuses, and transitions               |
 | [Reference: copy limits](reference/copy-limits.md)                             | Per-platform copy field counts and character limits        |
-| [Reference: ad formats](reference/ad-formats.md)                               | Image dimensions, safe zones, and byte caps                |
+| [Reference: ad formats](reference/ad-formats.md)                               | Dimensions, safe zones, byte caps, and the `pnpm formats` CLI |
 | [Reference: brand kit](reference/brand-kit.md)                                 | Brand-kit extraction sources and the `BrandKit` shape      |
 | [Reference: render jobs](reference/render-jobs.md)                             | `jobs.json` / `RenderJobFile` / `RenderSpec` schema        |
 | [Reference: commands](reference/commands.md)                                   | Package scripts and helper tools                           |
