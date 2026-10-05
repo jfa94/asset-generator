@@ -79,7 +79,7 @@ Ad format dimensions, reduced aspect ratios and safe zones can be listed with
 | [Guide: render images from the CLI](guides/render-from-cli.md)                 | Run the renderer directly from a `jobs.json`               |
 | [Reference: run state](reference/run-state.md)                                 | `run.json` schema, statuses, and transitions               |
 | [Reference: copy limits](reference/copy-limits.md)                             | Per-platform copy field counts and character limits        |
-| [Reference: ad formats](reference/ad-formats.md)                               | Dimensions, safe zones, byte caps, and the `pnpm formats` CLI |
+| [Reference: ad formats](reference/ad-formats.md)                               | Dimensions, safe zones, byte caps, `pnpm formats` CLI      |
 | [Reference: brand kit](reference/brand-kit.md)                                 | Brand-kit extraction sources and the `BrandKit` shape      |
 | [Reference: render jobs](reference/render-jobs.md)                             | `jobs.json` / `RenderJobFile` / `RenderSpec` schema        |
 | [Reference: commands](reference/commands.md)                                   | Package scripts and helper tools                           |
