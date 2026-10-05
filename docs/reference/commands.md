@@ -13,12 +13,13 @@ and [Puppeteer's executable-path setting](https://pptr.dev/api/puppeteer.configu
 
 ## Application
 
-| Command                   | Description                                                       |
-| ------------------------- | ----------------------------------------------------------------- |
-| `pnpm dev`                | Start the Next.js cockpit UI at `http://localhost:3000`.          |
-| `pnpm build`              | Production build of the cockpit.                                  |
-| `pnpm start`              | Serve the production build.                                       |
-| `pnpm render <jobs.json>` | Render a batch of image jobs (see [render jobs](render-jobs.md)). |
+| Command                                         | Description                                                                                                                         |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`                                      | Start the Next.js cockpit UI at `http://localhost:3000`.                                                                            |
+| `pnpm build`                                    | Production build of the cockpit.                                                                                                    |
+| `pnpm start`                                    | Serve the production build.                                                                                                         |
+| `pnpm render <jobs.json>`                       | Render a batch of image jobs (see [render jobs](render-jobs.md)).                                                                   |
+| `pnpm formats [--platform <platform>] [--json]` | List ad format dimensions, aspect ratios and safe zones (see [list formats from the CLI](ad-formats.md#list-formats-from-the-cli)). |
 
 ## Validate saved copy
 

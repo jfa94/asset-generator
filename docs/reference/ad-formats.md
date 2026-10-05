@@ -45,6 +45,98 @@ formats. It is a normal format, so it is also rendered to PNG like the rest.
 Lockups apply the safe zone as extra top/bottom padding so no copy or logo lands
 under platform UI. Only the 9:16 Meta `story` format declares one.
 
+## List formats from the CLI
+
+`pnpm formats [--platform <platform>] [--json]` prints the format catalogue without opening `src/domain/formats.ts`.
+It is read-only: it writes no files, makes no network calls and touches no runs or campaigns.
+
+| Option                  | Meaning                                                            |
+| ----------------------- | ------------------------------------------------------------------ |
+| `--platform <platform>` | List one platform only. Accepted values: `google-pmax` and `meta`. |
+| `--json`                | Print JSON instead of text.                                        |
+
+Each option may appear at most once, in any order. The value must follow `--platform` as a separate argument and must
+not start with `-`. Matching is exact: case-sensitive, with no trimming. `--help` and `--platform=meta` are usage errors.
+
+Ratios are exact reductions of width and height. The landscape format, 1200x628, is `300:157`, which the table above
+labels with the conventional `1.91:1`.
+
+Text output has one line per format, `<platform> <name> <width>x<height> <ratio>`, in catalogue order, with no header and
+no safe zone. `pnpm formats` prints:
+
+```text
+google-pmax landscape 1200x628 300:157
+google-pmax square 1200x1200 1:1
+google-pmax portrait 960x1200 4:5
+meta square 1080x1080 1:1
+meta feed 1080x1350 4:5
+meta story 1080x1920 9:16
+```
+
+JSON output is one compact line whose only key is `formats`. Each object holds `platform`, `name`, `width`, `height` and
+`aspectRatio`, plus `safeZone` (`top` and `bottom` fractions) only for the Meta `story` format. `pnpm formats --platform meta --json`
+prints the following, shown here expanded by Prettier (the CLI itself writes it on one line):
+
+```json
+{
+    "formats": [
+        {
+            "platform": "meta",
+            "name": "square",
+            "width": 1080,
+            "height": 1080,
+            "aspectRatio": "1:1"
+        },
+        {
+            "platform": "meta",
+            "name": "feed",
+            "width": 1080,
+            "height": 1350,
+            "aspectRatio": "4:5"
+        },
+        {
+            "platform": "meta",
+            "name": "story",
+            "width": 1080,
+            "height": 1920,
+            "aspectRatio": "9:16",
+            "safeZone": {
+                "top": 0.14,
+                "bottom": 0.2
+            }
+        }
+    ]
+}
+```
+
+| Exit code | Meaning                                                                                                | Streams                                      |
+| --------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------- |
+| `0`       | The listing was printed.                                                                               | The listing on stdout, empty stderr.         |
+| `2`       | Usage error (unknown flag, positional argument, missing or repeated option value) or unknown platform. | Empty stdout, one diagnostic line on stderr. |
+
+A usage error prints `Usage: pnpm formats [--platform <platform>] [--json]`. An unknown platform prints
+`Unknown platform "tiktok". Accepted values: google-pmax, meta.` and a usage error wins when both apply.
+
+For scripts and other machine consumers, run `pnpm --silent formats`. Without `--silent`, pnpm prints its `$ <command>`
+banner to stderr and, on a failure, an `[ELIFECYCLE] Command failed with exit code N.` line to stdout, which breaks the
+empty-stdout guarantee above.
+
+Caution: `pnpm format` (singular) is the Prettier writer (`prettier --write .`) and rewrites files in place. Mistyping it
+for `pnpm formats` changes your working tree.
+
+## Format catalogue interface
+
+Code that needs the same data imports it from `@/domain/formatCatalogue`, a pure module over `AD_FORMATS` with no I/O:
+
+| Export                             | Purpose                                                                                                                            |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `listFormats(platform?: string)`   | Returns a fresh `FormatSpec[]` in catalogue order. `undefined` returns every format; any other value must be an accepted platform. |
+| `FormatSpec`                       | `{platform, name, width, height, aspectRatio, safeZone?}`, with `safeZone` present only when the format has one.                   |
+| `UnknownPlatformError`             | Thrown by `listFormats` for any other string. Its message names the accepted values on one line.                                   |
+| `reduceAspectRatio(width, height)` | Returns the reduced `W:H` string. Throws `RangeError` unless both are positive integers.                                           |
+
+Every call returns new objects, so mutating a result never changes `AD_FORMATS` or a later result.
+
 ## Constants
 
 | Constant          | Value           | Meaning                                                                                                                                                  |
