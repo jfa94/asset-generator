@@ -3,9 +3,14 @@ import {listFormats, UnknownPlatformError} from '@/domain/formatCatalogue'
 
 const USAGE = 'Usage: pnpm formats [--platform <platform>] [--json]\n'
 
-function parsePlatform(args: string[]): {platform: string | undefined} | undefined {
+function parseArgs(args: string[]): {platform: string | undefined; json: boolean} | undefined {
     let platform: string | undefined
+    let json = false
     for (let i = 0; i < args.length; i++) {
+        if (args[i] === '--json' && !json) {
+            json = true
+            continue
+        }
         const value = args[i + 1]
         if (args[i] !== '--platform' || platform !== undefined || value === undefined || value.startsWith('-')) {
             return undefined
@@ -13,18 +18,23 @@ function parsePlatform(args: string[]): {platform: string | undefined} | undefin
         platform = value
         i++
     }
-    return {platform}
+    return {platform, json}
 }
 
 export function main(args: string[]): number {
-    const parsed = parsePlatform(args)
+    const parsed = parseArgs(args)
     if (parsed === undefined) {
         process.stderr.write(USAGE)
         return 2
     }
     try {
-        for (const {platform, name, width, height, aspectRatio} of listFormats(parsed.platform)) {
-            process.stdout.write(`${platform} ${name} ${String(width)}x${String(height)} ${aspectRatio}\n`)
+        const formats = listFormats(parsed.platform)
+        if (parsed.json) {
+            process.stdout.write(`${JSON.stringify({formats})}\n`)
+        } else {
+            for (const {platform, name, width, height, aspectRatio} of formats) {
+                process.stdout.write(`${platform} ${name} ${String(width)}x${String(height)} ${aspectRatio}\n`)
+            }
         }
     } catch (error) {
         if (!(error instanceof UnknownPlatformError)) {
