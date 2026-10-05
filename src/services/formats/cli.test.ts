@@ -186,6 +186,134 @@ it('can be imported by a separate cli.ts process without command I/O or exit', (
     expect(result.stderr).toBe('')
 })
 
+const GOOGLE_PMAX_TEXT = D9_LINES.slice(0, 3)
+    .map((line) => `${line}\n`)
+    .join('')
+const META_TEXT = D9_LINES.slice(3)
+    .map((line) => `${line}\n`)
+    .join('')
+const TIKTOK_MESSAGE = 'Unknown platform "tiktok". Accepted values: google-pmax, meta.'
+const EMPTY_PLATFORM_MESSAGE = 'Unknown platform "". Accepted values: google-pmax, meta.'
+
+const platformUsageCases = [
+    {name: '--platform with no value', args: ['--platform']},
+    {name: '--platform with a dash-led value -x', args: ['--platform', '-x']},
+    {name: '--platform with a dash-led value --bogus', args: ['--platform', '--bogus']},
+    {name: 'a repeated --platform meta', args: ['--platform', 'meta', '--platform', 'meta']},
+    {name: 'a repeated --platform with different values', args: ['--platform', 'meta', '--platform', 'google-pmax']},
+    {name: 'an unknown platform followed by --bogus', args: ['--platform', 'tiktok', '--bogus']},
+    {name: '--bogus followed by an unknown platform', args: ['--bogus', '--platform', 'tiktok']},
+    {name: 'an unknown platform followed by a positional', args: ['--platform', 'tiktok', 'meta']},
+    {name: 'an unknown platform repeated', args: ['--platform', 'tiktok', '--platform', 'tiktok']},
+]
+
+describe.each([
+    {name: 'in-process adapter', run: runAdapter},
+    {name: 'actual Node/tsx entry point', run: runNode},
+])('$name --platform [fmt-004]', ({run}) => {
+    it('--platform google-pmax lists exactly the three google-pmax D9 lines with exit 0 and empty stderr', async () => {
+        const result = await run(['--platform', 'google-pmax'])
+        expect(result).toEqual({code: 0, stdout: GOOGLE_PMAX_TEXT, stderr: ''})
+        expect(result.stdout.split('\n')).toEqual([
+            'google-pmax landscape 1200x628 300:157',
+            'google-pmax square 1200x1200 1:1',
+            'google-pmax portrait 960x1200 4:5',
+            '',
+        ])
+    })
+
+    it('--platform meta lists exactly the three meta D9 lines with exit 0 and empty stderr', async () => {
+        const result = await run(['--platform', 'meta'])
+        expect(result).toEqual({code: 0, stdout: META_TEXT, stderr: ''})
+        expect(result.stdout.split('\n')).toEqual([
+            'meta square 1080x1080 1:1',
+            'meta feed 1080x1350 4:5',
+            'meta story 1080x1920 9:16',
+            '',
+        ])
+    })
+
+    it('--platform tiktok exits 2 with only the accepted-values message on stderr and empty stdout', async () => {
+        const result = await run(['--platform', 'tiktok'])
+        expectDiagnostic(result)
+        expect(result).toEqual({code: 2, stdout: '', stderr: `${TIKTOK_MESSAGE}\n`})
+    })
+
+    it('--platform with an empty-string value exits 2 with the empty-string accepted-values message', async () => {
+        const result = await run(['--platform', ''])
+        expectDiagnostic(result)
+        expect(result).toEqual({code: 2, stdout: '', stderr: `${EMPTY_PLATFORM_MESSAGE}\n`})
+    })
+
+    it('treats platform matching as exact, rejecting Meta with the accepted-values message', async () => {
+        const result = await run(['--platform', 'Meta'])
+        expectDiagnostic(result)
+        expect(result).toEqual({
+            code: 2,
+            stdout: '',
+            stderr: 'Unknown platform "Meta". Accepted values: google-pmax, meta.\n',
+        })
+    })
+
+    it.each(platformUsageCases)('rejects $name with exit 2 and exactly the usage line on stderr', async ({args}) => {
+        const result = await run(args)
+        expectDiagnostic(result)
+        expect(result).toEqual({code: 2, stdout: '', stderr: `${USAGE_LINE}\n`})
+        expect(result.stderr).not.toContain('Accepted values')
+    })
+})
+
+describe('main error handling [fmt-004]', () => {
+    afterEach(() => {
+        vi.doUnmock('@/domain/formatCatalogue')
+        vi.resetModules()
+    })
+
+    it.each([
+        {name: 'no arguments', args: []},
+        {name: '--platform meta', args: ['--platform', 'meta']},
+        {name: '--platform google-pmax', args: ['--platform', 'google-pmax']},
+        {name: '--platform tiktok', args: ['--platform', 'tiktok']},
+    ])('rethrows a non-UnknownPlatformError from listFormats for $name instead of returning 2', async ({args}) => {
+        const fault = new Error('catalogue fault')
+        vi.resetModules()
+        vi.doMock('@/domain/formatCatalogue', async (importOriginal) => ({
+            ...(await importOriginal<Record<string, unknown>>()),
+            listFormats: () => {
+                throw fault
+            },
+        }))
+        vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+        vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+        const module = await cliModules['./cli.ts']?.()
+        expect(typeof module?.main).toBe('function')
+
+        await expect(Promise.resolve().then(() => module?.main(args))).rejects.toBe(fault)
+    })
+})
+
+it(
+    'pnpm --silent formats --platform tiktok exits 2 with empty stdout and the accepted values on stderr',
+    () => {
+        const result = runPackageScript(['--silent', 'formats', '--platform', 'tiktok'])
+        expect(result.code).toBe(2)
+        expect(result.stdout).toBe('')
+        expect(result.stderr).toContain('Accepted values: google-pmax, meta.')
+        expect(result.stderr).not.toMatch(/(^|\n)\s*at\s+\S/)
+    },
+    packageScriptTimeout
+)
+
+it(
+    'pnpm --silent formats --platform meta exits 0 with exactly the three meta D9 lines',
+    () => {
+        const result = runPackageScript(['--silent', 'formats', '--platform', 'meta'])
+        expect(result.code).toBe(0)
+        expect(result.stdout).toBe(META_TEXT)
+    },
+    packageScriptTimeout
+)
+
 it('gives byte-identical stdout for two no-argument runs from an empty directory and writes no file', () => {
     expect(readdirSync(fixtureDirectory)).toEqual([])
     const first = runNode([], fixtureDirectory)
