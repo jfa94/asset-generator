@@ -3,3 +3,6 @@ node_modules/
 *.sql
 # factory plugin: generated bundle (esbuild output, not hand-formatted)
 .github/scripts/
+# factory-managed workflows (hash-locked) and generated specs
+.github/workflows/
+docs/factory/
