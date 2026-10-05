@@ -17,6 +17,7 @@ export default defineConfig(
         '**/*.d.ts',
         '.dependency-cruiser.*',
         '.claude/',
+        '.stryker-tmp/',
     ]),
 
     eslint.configs.recommended,

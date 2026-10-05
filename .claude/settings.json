@@ -13,7 +13,9 @@
       "Glob",
       "Agent",
       "Read(/tmp/factory-asset-generator-canary/data/**)",
-      "Edit(/tmp/factory-asset-generator-canary/data/**)"
+      "Edit(/tmp/factory-asset-generator-canary/data/**)",
+      "Read(~/.claude/plugins/data/factory-jfa94/**)",
+      "Edit(~/.claude/plugins/data/factory-jfa94/**)"
     ]
   },
   "worktree": {
