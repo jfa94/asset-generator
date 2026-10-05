@@ -77,6 +77,7 @@ graph TD
         Render[Puppeteer + Sharp renderer]
         RenderCLI[render CLI]
         CopyCLI[validate-copy CLI]
+        FormatsCLI[formats CLI]
     end
     Skill[new-run agent skill]
     Wait[wait-for.mjs]
@@ -89,6 +90,7 @@ graph TD
     AssetAPI --> Store
     RenderCLI --> Render
     CopyCLI --> CopyVal
+    FormatsCLI --> Formats
     Render -->|renderToStaticMarkup| Lockups
     Render --> Formats
     Skill --> Store
@@ -116,8 +118,8 @@ path-escape-guarded asset reader.
 ### Domain (`src/domain/`)
 
 Pure business logic with no I/O: the run state machine (`run.ts`), per-platform
-copy validation (`validation/copy.ts`), and the ad-format specifications
-(`formats.ts`).
+copy validation (`validation/copy.ts`), the ad-format specifications
+(`formats.ts`), and the read-only format listing (`formatCatalogue.ts`).
 
 ### Brand-kit extraction (`src/lib/brandkit/`)
 
@@ -148,6 +150,13 @@ several entries via `--batch`, delegating runtime shape checks and platform
 rules to the domain's `validateCopy` / `validateCopyBatch` entry points. It
 returns a JSON result or a concise error with an exit code, without changing
 files or run state. See [command reference](../reference/commands.md#validate-saved-copy).
+
+### Format listing (`src/services/formats/`)
+
+The `formats` CLI in `src/services/formats/` (`pnpm formats [--platform <platform>] [--json]`)
+is a read-only command over the domain's `listFormats` interface. It prints each format's
+dimensions and reduced aspect ratio as text, or as JSON with safe zones, without
+changing files or run state. See [ad formats](../reference/ad-formats.md#list-formats-from-the-cli).
 
 ### Agent skill (`.claude/skills/new-run/SKILL.md`)
 
