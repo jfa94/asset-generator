@@ -6,6 +6,7 @@ import {tmpdir} from 'node:os'
 import {join, resolve} from 'node:path'
 import {pathToFileURL} from 'node:url'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {listFormats} from '@/domain/formatCatalogue'
 
 interface CommandResult {
     code: number | null | undefined
@@ -322,4 +323,213 @@ it('gives byte-identical stdout for two no-argument runs from an empty directory
     expect(Buffer.from(second.stdout)).toEqual(Buffer.from(first.stdout))
     expect(second).toEqual(first)
     expect(readdirSync(fixtureDirectory)).toEqual([])
+})
+
+const GOOGLE_PMAX_JSON_OBJECTS = [
+    '{"platform":"google-pmax","name":"landscape","width":1200,"height":628,"aspectRatio":"300:157"}',
+    '{"platform":"google-pmax","name":"square","width":1200,"height":1200,"aspectRatio":"1:1"}',
+    '{"platform":"google-pmax","name":"portrait","width":960,"height":1200,"aspectRatio":"4:5"}',
+]
+const META_JSON_OBJECTS = [
+    '{"platform":"meta","name":"square","width":1080,"height":1080,"aspectRatio":"1:1"}',
+    '{"platform":"meta","name":"feed","width":1080,"height":1350,"aspectRatio":"4:5"}',
+    '{"platform":"meta","name":"story","width":1080,"height":1920,"aspectRatio":"9:16","safeZone":{"top":0.14,"bottom":0.2}}',
+]
+const ALL_JSON_LINE = `{"formats":[${[...GOOGLE_PMAX_JSON_OBJECTS, ...META_JSON_OBJECTS].join(',')}]}`
+const GOOGLE_PMAX_JSON_LINE = `{"formats":[${GOOGLE_PMAX_JSON_OBJECTS.join(',')}]}`
+// D10's pinned `pnpm formats --platform meta --json` line, verbatim from the spec.
+const META_JSON_LINE =
+    '{"formats":[{"platform":"meta","name":"square","width":1080,"height":1080,"aspectRatio":"1:1"},{"platform":"meta","name":"feed","width":1080,"height":1350,"aspectRatio":"4:5"},{"platform":"meta","name":"story","width":1080,"height":1920,"aspectRatio":"9:16","safeZone":{"top":0.14,"bottom":0.2}}]}'
+const META_PAYLOAD = {
+    formats: [
+        {platform: 'meta', name: 'square', width: 1080, height: 1080, aspectRatio: '1:1'},
+        {platform: 'meta', name: 'feed', width: 1080, height: 1350, aspectRatio: '4:5'},
+        {
+            platform: 'meta',
+            name: 'story',
+            width: 1080,
+            height: 1920,
+            aspectRatio: '9:16',
+            safeZone: {top: 0.14, bottom: 0.2},
+        },
+    ],
+}
+const PINNED_AD_FORMATS = [
+    {platform: 'google-pmax', name: 'landscape', width: 1200, height: 628},
+    {platform: 'google-pmax', name: 'square', width: 1200, height: 1200},
+    {platform: 'google-pmax', name: 'portrait', width: 960, height: 1200},
+    {platform: 'meta', name: 'square', width: 1080, height: 1080},
+    {platform: 'meta', name: 'feed', width: 1080, height: 1350},
+    {platform: 'meta', name: 'story', width: 1080, height: 1920, safeZone: {top: 0.14, bottom: 0.2}},
+]
+
+interface JsonFormat {
+    platform?: unknown
+    name?: unknown
+    aspectRatio?: unknown
+    safeZone?: unknown
+}
+
+interface JsonPayload {
+    formats: JsonFormat[]
+}
+
+const jsonUsageCases = [
+    {name: 'a repeated --json', args: ['--json', '--json']},
+    {name: 'a repeated --json around --platform meta', args: ['--json', '--platform', 'meta', '--json']},
+    {name: 'an uppercase --JSON', args: ['--JSON']},
+    {name: '--json followed by a positional meta', args: ['--json', 'meta']},
+    {name: '--json followed by --platform with no value', args: ['--json', '--platform']},
+    {name: '--platform whose value would be --json', args: ['--platform', '--json']},
+    {name: 'an unknown platform with a repeated --json', args: ['--platform', 'tiktok', '--json', '--json']},
+    {name: '--json followed by --bogus', args: ['--json', '--bogus']},
+]
+
+describe.each([
+    {name: 'in-process adapter', run: runAdapter},
+    {name: 'actual Node/tsx entry point', run: runNode},
+])('$name --json [fmt-005]', ({run}) => {
+    it('--json prints exactly JSON.stringify({formats: listFormats()}) plus one newline with exit 0', async () => {
+        const result = await run(['--json'])
+        expect(result).toEqual({code: 0, stdout: `${ALL_JSON_LINE}\n`, stderr: ''})
+        expect(result.stdout).toBe(`${JSON.stringify({formats: listFormats()})}\n`)
+        expect(result.stdout.split('\n')).toEqual([ALL_JSON_LINE, ''])
+    })
+
+    it('--json output parses to a value whose only key is formats, holding six objects', async () => {
+        const result = await run(['--json'])
+        expect(result.code).toBe(0)
+        const parsed = JSON.parse(result.stdout) as JsonPayload
+        expect(Object.keys(parsed)).toEqual(['formats'])
+        expect(parsed.formats).toHaveLength(6)
+        expect(parsed.formats.map((format) => `${String(format.platform)} ${String(format.name)}`)).toEqual([
+            'google-pmax landscape',
+            'google-pmax square',
+            'google-pmax portrait',
+            'meta square',
+            'meta feed',
+            'meta story',
+        ])
+        expect(parsed.formats.map((format) => format.aspectRatio)).toEqual([
+            '300:157',
+            '1:1',
+            '4:5',
+            '1:1',
+            '4:5',
+            '9:16',
+        ])
+    })
+
+    it.each([
+        {name: '--platform meta --json', args: ['--platform', 'meta', '--json']},
+        {name: '--json --platform meta', args: ['--json', '--platform', 'meta']},
+    ])('$name prints exactly the D10 meta line plus a newline with exit 0', async ({args}) => {
+        const result = await run(args)
+        expect(result).toEqual({code: 0, stdout: `${META_JSON_LINE}\n`, stderr: ''})
+        expect(result.stdout).toBe(`${JSON.stringify({formats: listFormats('meta')})}\n`)
+    })
+
+    it('--platform meta --json carries a safeZone only on the story object', async () => {
+        const result = await run(['--platform', 'meta', '--json'])
+        expect(result.code).toBe(0)
+        const parsed = JSON.parse(result.stdout) as JsonPayload
+        expect(parsed).toEqual(META_PAYLOAD)
+        expect(parsed.formats.map((format) => format.name)).toEqual(['square', 'feed', 'story'])
+        expect(parsed.formats[2]?.safeZone).toEqual({top: 0.14, bottom: 0.2})
+        expect(parsed.formats.map((format) => 'safeZone' in format)).toEqual([false, false, true])
+    })
+
+    it('--platform google-pmax --json lists exactly the three google-pmax objects without a safeZone key', async () => {
+        const result = await run(['--platform', 'google-pmax', '--json'])
+        expect(result).toEqual({code: 0, stdout: `${GOOGLE_PMAX_JSON_LINE}\n`, stderr: ''})
+        const parsed = JSON.parse(result.stdout) as JsonPayload
+        expect(parsed.formats).toEqual([
+            {platform: 'google-pmax', name: 'landscape', width: 1200, height: 628, aspectRatio: '300:157'},
+            {platform: 'google-pmax', name: 'square', width: 1200, height: 1200, aspectRatio: '1:1'},
+            {platform: 'google-pmax', name: 'portrait', width: 960, height: 1200, aspectRatio: '4:5'},
+        ])
+        expect(parsed.formats.map((format) => format.aspectRatio)).toEqual(['300:157', '1:1', '4:5'])
+        expect(parsed.formats.map((format) => 'safeZone' in format)).toEqual([false, false, false])
+    })
+
+    it.each([
+        {name: '--platform tiktok --json', args: ['--platform', 'tiktok', '--json']},
+        {name: '--json --platform tiktok', args: ['--json', '--platform', 'tiktok']},
+    ])('$name exits 2 with only the plain accepted-values message and empty stdout', async ({args}) => {
+        const result = await run(args)
+        expectDiagnostic(result)
+        expect(result).toEqual({code: 2, stdout: '', stderr: `${TIKTOK_MESSAGE}\n`})
+        expect(result.stderr).not.toContain('{')
+    })
+
+    it.each(jsonUsageCases)('rejects $name with exit 2 and exactly the usage line on stderr', async ({args}) => {
+        const result = await run(args)
+        expectDiagnostic(result)
+        expect(result).toEqual({code: 2, stdout: '', stderr: `${USAGE_LINE}\n`})
+    })
+})
+
+it('gives the same --platform meta --json bytes through the in-process adapter and the actual entry point', async () => {
+    const adapter = await runAdapter(['--platform', 'meta', '--json'])
+    const entryPoint = runNode(['--platform', 'meta', '--json'])
+    expect(adapter).toEqual({code: 0, stdout: `${META_JSON_LINE}\n`, stderr: ''})
+    expect(entryPoint).toEqual(adapter)
+})
+
+it(
+    'pnpm formats --platform meta --json exits 0 with stdout parsing to the D10 meta payload',
+    () => {
+        const result = runPackageScript(['formats', '--platform', 'meta', '--json'])
+        expect(result.code).toBe(0)
+        expect(JSON.parse(result.stdout)).toEqual(META_PAYLOAD)
+    },
+    packageScriptTimeout
+)
+
+it(
+    'pnpm --silent formats --json --bogus exits 2 with empty stdout and the usage line on stderr',
+    () => {
+        const result = runPackageScript(['--silent', 'formats', '--json', '--bogus'])
+        expect(result.code).toBe(2)
+        expect(result.stdout).toBe('')
+        expect(result.stderr).toContain(USAGE_LINE)
+        expect(result.stderr).not.toMatch(/(^|\n)\s*at\s+\S/)
+    },
+    packageScriptTimeout
+)
+
+it('gives byte-identical stdout for two --platform meta --json runs from an empty directory and writes no file', () => {
+    expect(readdirSync(fixtureDirectory)).toEqual([])
+    const first = runNode(['--platform', 'meta', '--json'], fixtureDirectory)
+    const second = runNode(['--platform', 'meta', '--json'], fixtureDirectory)
+    expect(first).toEqual({code: 0, stdout: `${META_JSON_LINE}\n`, stderr: ''})
+    expect(Buffer.from(second.stdout)).toEqual(Buffer.from(first.stdout))
+    expect(second).toEqual(first)
+    expect(readdirSync(fixtureDirectory)).toEqual([])
+})
+
+it('leaves AD_FORMATS equal to the pinned list after in-process runs of every accepted argument form', async () => {
+    const acceptedForms = [
+        [],
+        ['--json'],
+        ['--platform', 'google-pmax'],
+        ['--platform', 'meta'],
+        ['--platform', 'google-pmax', '--json'],
+        ['--json', '--platform', 'google-pmax'],
+        ['--platform', 'meta', '--json'],
+        ['--json', '--platform', 'meta'],
+    ]
+    const outputs: CommandResult[] = []
+    for (const args of acceptedForms) {
+        outputs.push(await runAdapter(args))
+    }
+    expect(outputs.map((output) => output.code)).toEqual(acceptedForms.map(() => 0))
+    expect(outputs.map((output) => output.stderr)).toEqual(acceptedForms.map(() => ''))
+    // Repeat to show repeated calls are byte-identical.
+    for (const [index, args] of acceptedForms.entries()) {
+        expect(await runAdapter(args)).toEqual(outputs[index])
+    }
+    // Dynamic import shares the registry the adapter just loaded cli.ts from.
+    const {AD_FORMATS} = await import('@/domain/formats')
+    expect(AD_FORMATS).toEqual(PINNED_AD_FORMATS)
 })
