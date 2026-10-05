@@ -24,12 +24,26 @@ export function reduceAspectRatio(width: number, height: number): string {
     return `${String(width / divisor)}:${String(height / divisor)}`
 }
 
-export function listFormats(): FormatSpec[] {
-    return AD_FORMATS.map(({platform, name, width, height, safeZone}) => {
-        const spec: FormatSpec = {platform, name, width, height, aspectRatio: reduceAspectRatio(width, height)}
-        if (safeZone !== undefined) {
-            spec.safeZone = {top: safeZone.top, bottom: safeZone.bottom}
+const ACCEPTED_PLATFORMS: readonly string[] = [...new Set(AD_FORMATS.map(({platform}) => platform))]
+
+export class UnknownPlatformError extends Error {
+    constructor(value: string) {
+        super(`Unknown platform ${JSON.stringify(value)}. Accepted values: ${ACCEPTED_PLATFORMS.join(', ')}.`)
+        this.name = 'UnknownPlatformError'
+    }
+}
+
+export function listFormats(platform?: string): FormatSpec[] {
+    if (platform !== undefined && !ACCEPTED_PLATFORMS.includes(platform)) {
+        throw new UnknownPlatformError(platform)
+    }
+    return AD_FORMATS.filter((format) => platform === undefined || format.platform === platform).map(
+        ({platform, name, width, height, safeZone}) => {
+            const spec: FormatSpec = {platform, name, width, height, aspectRatio: reduceAspectRatio(width, height)}
+            if (safeZone !== undefined) {
+                spec.safeZone = {top: safeZone.top, bottom: safeZone.bottom}
+            }
+            return spec
         }
-        return spec
-    })
+    )
 }
