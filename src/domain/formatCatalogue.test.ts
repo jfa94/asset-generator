@@ -224,3 +224,194 @@ describe('reduceAspectRatio', () => {
         }
     )
 })
+
+interface FilteringCatalogueModule {
+    listFormats: (platform?: string) => FormatSpecView[]
+    UnknownPlatformError: new (...args: never[]) => Error
+}
+
+async function loadFilter(): Promise<Pick<FilteringCatalogueModule, 'listFormats'>> {
+    return await loadCatalogue()
+}
+
+async function loadFilteringCatalogue(): Promise<FilteringCatalogueModule> {
+    const catalogue = (await loadCatalogue()) as unknown as Partial<FilteringCatalogueModule>
+    expect(catalogue.UnknownPlatformError, 'formatCatalogue.ts must export UnknownPlatformError').toBeTypeOf('function')
+    return catalogue as FilteringCatalogueModule
+}
+
+function captureError(run: () => unknown): unknown {
+    try {
+        run()
+    } catch (error) {
+        return error
+    }
+    return undefined
+}
+
+const ACCEPTED_SUFFIX = '. Accepted values: google-pmax, meta.'
+
+const GOOGLE_PMAX_SPECS = [
+    {platform: 'google-pmax', name: 'landscape', width: 1200, height: 628, aspectRatio: '300:157'},
+    {platform: 'google-pmax', name: 'square', width: 1200, height: 1200, aspectRatio: '1:1'},
+    {platform: 'google-pmax', name: 'portrait', width: 960, height: 1200, aspectRatio: '4:5'},
+]
+
+const META_SPECS = [
+    {platform: 'meta', name: 'square', width: 1080, height: 1080, aspectRatio: '1:1'},
+    {platform: 'meta', name: 'feed', width: 1080, height: 1350, aspectRatio: '4:5'},
+    {
+        platform: 'meta',
+        name: 'story',
+        width: 1080,
+        height: 1920,
+        aspectRatio: '9:16',
+        safeZone: {top: 0.14, bottom: 0.2},
+    },
+]
+
+const rejectedPlatform = fc
+    .oneof(
+        fc.string(),
+        fc.string({unit: 'binary'}),
+        fc.tuple(fc.string(), fc.constantFrom('\n', '\r', '\r\n'), fc.string()).map(([a, eol, b]) => a + eol + b),
+        fc.constantFrom('', 'Meta', 'META', ' meta', 'meta ', 'google', 'google-pmax\n', 'meta\r', 'tiktok')
+    )
+    .filter((value) => value !== 'google-pmax' && value !== 'meta')
+
+describe('listFormats platform filter', () => {
+    it('returns google-pmax landscape, square and portrait in order, each deep-equal to its unfiltered entry', async () => {
+        const {listFormats} = await loadFilter()
+        const all = listFormats()
+        const filtered = listFormats('google-pmax')
+        expect(filtered.map((spec) => [spec.platform, spec.name])).toEqual([
+            ['google-pmax', 'landscape'],
+            ['google-pmax', 'square'],
+            ['google-pmax', 'portrait'],
+        ])
+        expect(filtered).toEqual(GOOGLE_PMAX_SPECS)
+        expect(filtered).toEqual(all.slice(0, 3))
+        expect(filtered.map((spec) => 'safeZone' in spec)).toEqual([false, false, false])
+    })
+
+    it('returns meta square, feed and story in order, with a safeZone key only on story', async () => {
+        const {listFormats} = await loadFilter()
+        const all = listFormats()
+        const filtered = listFormats('meta')
+        expect(filtered.map((spec) => [spec.platform, spec.name])).toEqual([
+            ['meta', 'square'],
+            ['meta', 'feed'],
+            ['meta', 'story'],
+        ])
+        expect(filtered).toEqual(META_SPECS)
+        expect(filtered).toEqual(all.slice(3))
+        expect(filtered[2]?.safeZone).toEqual({top: 0.14, bottom: 0.2})
+        expect(filtered.map((spec) => 'safeZone' in spec)).toEqual([false, false, true])
+        expect(filtered.map((spec) => Object.keys(spec))).toEqual([BASE_KEYS, BASE_KEYS, [...BASE_KEYS, 'safeZone']])
+    })
+
+    it('builds filtered values as fresh copies that do not alias AD_FORMATS', async () => {
+        const {listFormats} = await loadFilter()
+        const google = listFormats('google-pmax')
+        const meta = listFormats('meta')
+        expect(google).toHaveLength(3)
+        expect(meta).toHaveLength(3)
+        google.forEach((spec, index) => {
+            expect(spec).not.toBe(AD_FORMATS[index])
+        })
+        meta.forEach((spec, index) => {
+            expect(spec).not.toBe(AD_FORMATS[index + 3])
+        })
+        expect(meta[2]?.safeZone).toEqual(AD_FORMATS[5]?.safeZone)
+        expect(meta[2]?.safeZone).not.toBe(AD_FORMATS[5]?.safeZone)
+    })
+
+    it('treats undefined as no filter', async () => {
+        const {listFormats} = await loadFilter()
+        expect(listFormats(undefined)).toEqual(listFormats())
+        expect(listFormats(undefined)).toHaveLength(6)
+    })
+
+    it('throws UnknownPlatformError with the exact accepted-values message for tiktok', async () => {
+        const {listFormats, UnknownPlatformError} = await loadFilteringCatalogue()
+        const error = captureError(() => listFormats('tiktok'))
+        expect(error).toBeInstanceOf(UnknownPlatformError)
+        expect(error).toBeInstanceOf(Error)
+        expect((error as Error).name).toBe('UnknownPlatformError')
+        expect((error as Error).message).toBe('Unknown platform "tiktok". Accepted values: google-pmax, meta.')
+    })
+
+    it.each(['', 'Meta', 'META', ' meta', 'meta ', 'google'])(
+        'rejects %j as an unknown platform naming google-pmax and meta',
+        async (value) => {
+            const {listFormats, UnknownPlatformError} = await loadFilteringCatalogue()
+            const error = captureError(() => listFormats(value))
+            expect(error).toBeInstanceOf(UnknownPlatformError)
+            const message = (error as Error).message
+            expect(message).toContain('google-pmax')
+            expect(message).toContain('meta')
+            expect(message).toBe(`Unknown platform ${JSON.stringify(value)}${ACCEPTED_SUFFIX}`)
+        }
+    )
+
+    it('rejects every other string, including ones with line feeds and carriage returns, with a single-line message', async () => {
+        const {listFormats, UnknownPlatformError} = await loadFilteringCatalogue()
+        fc.assert(
+            fc.property(rejectedPlatform, (value) => {
+                const error = captureError(() => listFormats(value))
+                expect(error).toBeInstanceOf(UnknownPlatformError)
+                const message = (error as Error).message
+                expect(message).not.toMatch(/[\n\r]/)
+                expect(message).toBe(`Unknown platform ${JSON.stringify(value)}${ACCEPTED_SUFFIX}`)
+            })
+        )
+    })
+
+    it('returns deep-equal results for equal filters across interleaved calls and leaves AD_FORMATS unchanged', async () => {
+        const {listFormats, UnknownPlatformError} = await loadFilteringCatalogue()
+        const filter = fc.oneof(
+            fc.constant(undefined),
+            fc.constant('google-pmax'),
+            fc.constant('meta'),
+            rejectedPlatform
+        )
+        const expectedByFilter = new Map<string | undefined, FormatSpecView[]>([
+            [undefined, [...GOOGLE_PMAX_SPECS, ...META_SPECS]],
+            ['google-pmax', GOOGLE_PMAX_SPECS],
+            ['meta', META_SPECS],
+        ])
+        fc.assert(
+            fc.property(fc.array(filter, {minLength: 1, maxLength: 30}), (sequence) => {
+                const snapshot = structuredClone(AD_FORMATS)
+                const firstResults = new Map<string | undefined, FormatSpecView[]>()
+                const firstMessages = new Map<string, string>()
+                for (const value of sequence) {
+                    const expected = expectedByFilter.get(value)
+                    if (expected === undefined && value !== undefined) {
+                        const error = captureError(() => listFormats(value))
+                        expect(error).toBeInstanceOf(UnknownPlatformError)
+                        const message = (error as Error).message
+                        expect(message).toBe(firstMessages.get(value) ?? message)
+                        firstMessages.set(value, message)
+                        continue
+                    }
+                    const result = listFormats(value)
+                    expect(result).toEqual(expected)
+                    const first = firstResults.get(value)
+                    if (first !== undefined) {
+                        expect(result).toEqual(first)
+                    } else {
+                        firstResults.set(value, structuredClone(result))
+                    }
+                    for (const spec of result) {
+                        spec.width = -1
+                        if (spec.safeZone !== undefined) {
+                            spec.safeZone.top = -1
+                        }
+                    }
+                }
+                expect(AD_FORMATS).toEqual(snapshot)
+            })
+        )
+    })
+})
