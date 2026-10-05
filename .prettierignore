@@ -6,3 +6,4 @@ node_modules/
 # factory-managed workflows (hash-locked) and generated specs
 .github/workflows/
 docs/factory/
+pnpm-lock.yaml
