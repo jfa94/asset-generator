@@ -3,9 +3,14 @@ import {listCopyLimits, UnknownCopyPlatformError} from '@/domain/validation/copy
 
 const USAGE = 'Usage: pnpm copy-limits [--platform <platform>] [--json]\n'
 
-function parseArgs(args: string[]): {platform: string | undefined} | undefined {
+function parseArgs(args: string[]): {platform: string | undefined; json: boolean} | undefined {
     let platform: string | undefined
+    let json = false
     for (let i = 0; i < args.length; i++) {
+        if (args[i] === '--json' && !json) {
+            json = true
+            continue
+        }
         const value = args[i + 1]
         if (args[i] !== '--platform' || platform !== undefined || value === undefined || value.startsWith('-')) {
             return undefined
@@ -13,7 +18,7 @@ function parseArgs(args: string[]): {platform: string | undefined} | undefined {
         platform = value
         i++
     }
-    return {platform}
+    return {platform, json}
 }
 
 export function main(args: string[]): number {
@@ -23,8 +28,13 @@ export function main(args: string[]): number {
         return 2
     }
     try {
-        for (const {platform, field, min, max, maxChars} of listCopyLimits(parsed.platform)) {
-            process.stdout.write(`${platform} ${field} ${String(min)}-${String(max)} ${String(maxChars)}\n`)
+        const limits = listCopyLimits(parsed.platform)
+        if (parsed.json) {
+            process.stdout.write(`${JSON.stringify({limits})}\n`)
+        } else {
+            for (const {platform, field, min, max, maxChars} of limits) {
+                process.stdout.write(`${platform} ${field} ${String(min)}-${String(max)} ${String(maxChars)}\n`)
+            }
         }
     } catch (error) {
         if (!(error instanceof UnknownCopyPlatformError)) {
