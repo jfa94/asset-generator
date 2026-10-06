@@ -25,6 +25,20 @@ export const COPY_LIMITS: readonly Readonly<CopyLimit>[] = Object.freeze([
     entry('meta', 'descriptions', 1, 5, 25),
 ])
 
-export function listCopyLimits(): CopyLimit[] {
-    return COPY_LIMITS.map(({platform, field, min, max, maxChars}) => ({platform, field, min, max, maxChars}))
+const ACCEPTED_PLATFORMS: readonly string[] = [...new Set(COPY_LIMITS.map(({platform}) => platform))]
+
+export class UnknownCopyPlatformError extends Error {
+    constructor(value: string) {
+        super(`Unknown platform ${JSON.stringify(value)}. Accepted values: ${ACCEPTED_PLATFORMS.join(', ')}.`)
+        this.name = 'UnknownCopyPlatformError'
+    }
+}
+
+export function listCopyLimits(platform?: string): CopyLimit[] {
+    if (platform !== undefined && !ACCEPTED_PLATFORMS.includes(platform)) {
+        throw new UnknownCopyPlatformError(platform)
+    }
+    return COPY_LIMITS.filter((limit) => platform === undefined || limit.platform === platform).map(
+        ({platform, field, min, max, maxChars}) => ({platform, field, min, max, maxChars})
+    )
 }
