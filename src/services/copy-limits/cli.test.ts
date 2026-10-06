@@ -218,3 +218,139 @@ it(
     },
     entryPointTimeout * 2
 )
+
+const ACCEPTED_VALUES = 'Accepted values: rsa, pmax, meta.'
+
+function unknownPlatformLine(value: string): string {
+    return `Unknown platform ${JSON.stringify(value)}. ${ACCEPTED_VALUES}\n`
+}
+
+const platformCases = [
+    {platform: 'rsa', lines: D10_LINES.slice(0, 3)},
+    {platform: 'pmax', lines: D10_LINES.slice(3, 7)},
+    {platform: 'meta', lines: D10_LINES.slice(7, 10)},
+]
+
+const unknownPlatformCases = [
+    {value: 'tiktok', stderr: 'Unknown platform "tiktok". Accepted values: rsa, pmax, meta.\n'},
+    {value: 'META', stderr: 'Unknown platform "META". Accepted values: rsa, pmax, meta.\n'},
+    {value: '', stderr: 'Unknown platform "". Accepted values: rsa, pmax, meta.\n'},
+]
+
+const platformUsageCases = [
+    {name: '--platform with no value', args: ['--platform']},
+    {name: '--platform -x', args: ['--platform', '-x']},
+    {name: '--platform --bogus', args: ['--platform', '--bogus']},
+    {name: '--platform -', args: ['--platform', '-']},
+    {name: '--platform meta --platform meta', args: ['--platform', 'meta', '--platform', 'meta']},
+    {name: '--platform meta --platform rsa', args: ['--platform', 'meta', '--platform', 'rsa']},
+    {name: '--platform meta followed by a positional', args: ['--platform', 'meta', 'rsa']},
+    {name: '--platform=meta', args: ['--platform=meta']},
+    {name: '--platform tiktok --bogus', args: ['--platform', 'tiktok', '--bogus']},
+    {name: '--bogus --platform tiktok', args: ['--bogus', '--platform', 'tiktok']},
+    {name: '--platform tiktok --platform meta', args: ['--platform', 'tiktok', '--platform', 'meta']},
+]
+
+describe.each([
+    {name: 'in-process adapter', run: runAdapter},
+    {name: 'actual Node/tsx entry point', run: runNode},
+])('$name --platform [cl-006]', ({run}) => {
+    it.each(platformCases)(
+        '--platform $platform exits 0 with exactly that platform D10 lines and empty stderr',
+        async ({platform, lines}) => {
+            const result = await run(['--platform', platform])
+            expect(result).toEqual({code: 0, stdout: lines.map((line) => `${line}\n`).join(''), stderr: ''})
+            expect(result.stdout.split('\n')).toEqual([...lines, ''])
+        },
+        entryPointTimeout
+    )
+
+    it.each(unknownPlatformCases)(
+        'rejects --platform $value with exit 2, empty stdout and exactly the accepted-values message',
+        async ({value, stderr}) => {
+            const result = await run(['--platform', value])
+            expectDiagnostic(result)
+            expect(result).toEqual({code: 2, stdout: '', stderr})
+            expect(result.stderr).toBe(unknownPlatformLine(value))
+        },
+        entryPointTimeout
+    )
+
+    it.each(platformUsageCases)(
+        'rejects $name with exit 2 and exactly the usage line on stderr',
+        async ({args}) => {
+            const result = await run(args)
+            expectDiagnostic(result)
+            expect(result).toEqual({code: 2, stdout: '', stderr: `${USAGE_LINE}\n`})
+            expect(result.stderr).not.toContain('Unknown platform')
+        },
+        entryPointTimeout
+    )
+})
+
+describe('main error handling [cl-006]', () => {
+    const CATALOGUE = '@/domain/validation/copyLimits'
+
+    afterEach(() => {
+        vi.doUnmock(CATALOGUE)
+        vi.resetModules()
+    })
+
+    async function loadMainWithFailingCatalogue(failure: Error): Promise<CliModule> {
+        vi.resetModules()
+        vi.doMock(CATALOGUE, async (importOriginal) => {
+            const actual = await importOriginal<Record<string, unknown>>()
+            return {
+                ...actual,
+                listCopyLimits: () => {
+                    throw failure
+                },
+            }
+        })
+        const module = await cliModules['./cli.ts']?.()
+        if (module === undefined) {
+            throw new Error('cli.ts is not available')
+        }
+        return module
+    }
+
+    it.each([
+        {name: 'no arguments', args: []},
+        {name: '--platform rsa', args: ['--platform', 'rsa']},
+        {name: '--platform tiktok', args: ['--platform', 'tiktok']},
+    ])('rethrows a plain Error from listCopyLimits for $name instead of returning 2', async ({args}) => {
+        const failure = new Error('catalogue fault')
+        const module = await loadMainWithFailingCatalogue(failure)
+        const writes: string[] = []
+        vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+            writes.push(String(chunk))
+            return true
+        })
+        vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+            writes.push(String(chunk))
+            return true
+        })
+        await expect(Promise.resolve().then(() => module.main(args))).rejects.toBe(failure)
+        expect(writes).toEqual([])
+    })
+
+    it('rethrows a TypeError from listCopyLimits for --platform meta', async () => {
+        const failure = new TypeError('unexpected shape')
+        const module = await loadMainWithFailingCatalogue(failure)
+        vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+        vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+        await expect(Promise.resolve().then(() => module.main(['--platform', 'meta']))).rejects.toBe(failure)
+    })
+})
+
+it(
+    'pnpm --silent copy-limits --platform tiktok exits 2 with empty stdout and the accepted values on stderr [cl-006]',
+    () => {
+        const result = runPackageScript(['--silent', 'copy-limits', '--platform', 'tiktok'])
+        expect(result.code).toBe(2)
+        expect(result.stdout).toBe('')
+        expect(result.stderr).toContain(ACCEPTED_VALUES)
+        expect(result.stderr).toContain('Unknown platform "tiktok".')
+    },
+    packageScriptTimeout
+)
