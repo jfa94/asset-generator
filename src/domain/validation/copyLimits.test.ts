@@ -1,3 +1,4 @@
+import fc from 'fast-check'
 import {describe, expect, it} from 'vitest'
 
 interface CopyLimitView {
@@ -202,5 +203,224 @@ describe('listCopyLimits', () => {
         expect(second.map((entry, index) => entry === first[index])).toEqual(D3.map(() => false))
         expect(COPY_LIMITS).toEqual(snapshot)
         expect(snapshot).toEqual(freshD3())
+    })
+})
+
+interface FilteringCopyLimitsModule {
+    COPY_LIMITS: readonly Readonly<CopyLimitView>[]
+    listCopyLimits: (platform?: string) => CopyLimitView[]
+    UnknownCopyPlatformError: new (...args: never[]) => Error
+}
+
+async function loadFilter(): Promise<Pick<FilteringCopyLimitsModule, 'COPY_LIMITS' | 'listCopyLimits'>> {
+    return await loadCopyLimits()
+}
+
+async function loadFilteringCopyLimits(): Promise<FilteringCopyLimitsModule> {
+    const copyLimits = (await loadCopyLimits()) as unknown as Partial<FilteringCopyLimitsModule>
+    expect(copyLimits.UnknownCopyPlatformError, 'copyLimits.ts must export UnknownCopyPlatformError').toBeTypeOf(
+        'function'
+    )
+    return copyLimits as FilteringCopyLimitsModule
+}
+
+function captureError(run: () => unknown): unknown {
+    try {
+        run()
+    } catch (error) {
+        return error
+    }
+    return undefined
+}
+
+const ACCEPTED_VALUES = 'Accepted values: rsa, pmax, meta.'
+
+const RSA_LIMITS = D3.slice(0, 3)
+const PMAX_LIMITS = D3.slice(3, 7)
+const META_LIMITS = D3.slice(7)
+
+const rejectedPlatform = fc
+    .oneof(
+        fc.string(),
+        fc.string({unit: 'binary'}),
+        fc.tuple(fc.string(), fc.constantFrom('\n', '\r', '\r\n'), fc.string()).map(([a, eol, b]) => a + eol + b),
+        fc.constantFrom(
+            '',
+            'Meta',
+            'RSA',
+            'PMAX',
+            ' meta',
+            'meta ',
+            'rsa\n',
+            'pmax\r',
+            'google-pmax',
+            'tiktok',
+            '__proto__',
+            'constructor',
+            'toString',
+            'hasOwnProperty',
+            'valueOf'
+        )
+    )
+    .filter((value) => value !== 'rsa' && value !== 'pmax' && value !== 'meta')
+
+describe('listCopyLimits platform filter', () => {
+    it('returns the rsa headlines, descriptions and paths entries in order, each deep-equal to its unfiltered entry', async () => {
+        const {listCopyLimits} = await loadFilter()
+        const all = listCopyLimits()
+        const filtered = listCopyLimits('rsa')
+        expect(filtered.map((entry) => [entry.platform, entry.field])).toEqual([
+            ['rsa', 'headlines'],
+            ['rsa', 'descriptions'],
+            ['rsa', 'paths'],
+        ])
+        expect(filtered).toEqual(RSA_LIMITS)
+        expect(filtered).toEqual(all.slice(0, 3))
+        expect(filtered.map((entry) => Object.keys(entry))).toEqual(RSA_LIMITS.map(() => KEYS))
+    })
+
+    it('returns the pmax shortHeadlines, longHeadlines, descriptions and businessName entries in order', async () => {
+        const {listCopyLimits} = await loadFilter()
+        const all = listCopyLimits()
+        const filtered = listCopyLimits('pmax')
+        expect(filtered.map((entry) => [entry.platform, entry.field])).toEqual([
+            ['pmax', 'shortHeadlines'],
+            ['pmax', 'longHeadlines'],
+            ['pmax', 'descriptions'],
+            ['pmax', 'businessName'],
+        ])
+        expect(filtered).toEqual(PMAX_LIMITS)
+        expect(filtered).toEqual(all.slice(3, 7))
+        expect(filtered.map((entry) => Object.keys(entry))).toEqual(PMAX_LIMITS.map(() => KEYS))
+    })
+
+    it('returns the meta primaryTexts, headlines and descriptions entries in order', async () => {
+        const {listCopyLimits} = await loadFilter()
+        const all = listCopyLimits()
+        const filtered = listCopyLimits('meta')
+        expect(filtered.map((entry) => [entry.platform, entry.field])).toEqual([
+            ['meta', 'primaryTexts'],
+            ['meta', 'headlines'],
+            ['meta', 'descriptions'],
+        ])
+        expect(filtered).toEqual(META_LIMITS)
+        expect(filtered).toEqual(all.slice(7))
+        expect(filtered.map((entry) => Object.keys(entry))).toEqual(META_LIMITS.map(() => KEYS))
+    })
+
+    it('treats undefined as no filter', async () => {
+        const {listCopyLimits} = await loadFilter()
+        expect(listCopyLimits(undefined)).toEqual(listCopyLimits())
+        expect(listCopyLimits(undefined)).toEqual(freshD3())
+    })
+
+    it('concatenates the rsa, pmax and meta results into the unfiltered list', async () => {
+        const {listCopyLimits} = await loadFilter()
+        const concatenated = [...listCopyLimits('rsa'), ...listCopyLimits('pmax'), ...listCopyLimits('meta')]
+        expect(concatenated).toHaveLength(10)
+        expect(concatenated).toEqual(listCopyLimits())
+    })
+
+    it('builds filtered results that share no array or entry reference with COPY_LIMITS', async () => {
+        const {COPY_LIMITS, listCopyLimits} = await loadFilter()
+        const catalogueEntries = new Set<object>(COPY_LIMITS)
+        for (const [platform, length] of [
+            ['rsa', 3],
+            ['pmax', 4],
+            ['meta', 3],
+        ] as const) {
+            const filtered = listCopyLimits(platform)
+            expect(filtered, platform).toHaveLength(length)
+            expect(filtered).not.toBe(COPY_LIMITS)
+            expect(filtered.map((entry) => catalogueEntries.has(entry))).toEqual(filtered.map(() => false))
+            expect(filtered.map((entry) => Object.isFrozen(entry))).toEqual(filtered.map(() => false))
+        }
+    })
+
+    it('throws UnknownCopyPlatformError with the exact accepted-values message for tiktok', async () => {
+        const {listCopyLimits, UnknownCopyPlatformError} = await loadFilteringCopyLimits()
+        const error = captureError(() => listCopyLimits('tiktok'))
+        expect(error).toBeInstanceOf(UnknownCopyPlatformError)
+        expect(error).toBeInstanceOf(Error)
+        expect((error as Error).name).toBe('UnknownCopyPlatformError')
+        expect((error as Error).message).toBe('Unknown platform "tiktok". Accepted values: rsa, pmax, meta.')
+    })
+
+    it.each(['', 'Meta', 'RSA', ' meta', 'meta ', 'google-pmax', '__proto__', 'constructor', 'toString'])(
+        'rejects %j as an unknown platform naming rsa, pmax and meta',
+        async (value) => {
+            const {listCopyLimits, UnknownCopyPlatformError} = await loadFilteringCopyLimits()
+            const error = captureError(() => listCopyLimits(value))
+            expect(error).toBeInstanceOf(UnknownCopyPlatformError)
+            const message = (error as Error).message
+            expect(message).toContain(ACCEPTED_VALUES)
+            expect(message).toBe(`Unknown platform ${JSON.stringify(value)}. ${ACCEPTED_VALUES}`)
+        }
+    )
+
+    it('rejects every other string, including ones with line feeds and carriage returns, with a single-line message', async () => {
+        const {listCopyLimits, UnknownCopyPlatformError} = await loadFilteringCopyLimits()
+        fc.assert(
+            fc.property(rejectedPlatform, (value) => {
+                const error = captureError(() => listCopyLimits(value))
+                expect(error).toBeInstanceOf(UnknownCopyPlatformError)
+                const message = (error as Error).message
+                expect(message).not.toMatch(/[\n\r]/)
+                expect(message).toBe(`Unknown platform ${JSON.stringify(value)}. ${ACCEPTED_VALUES}`)
+            })
+        )
+    })
+
+    it('returns deep-equal fresh results for equal filters across interleaved calls and leaves COPY_LIMITS unchanged', async () => {
+        const {COPY_LIMITS, listCopyLimits, UnknownCopyPlatformError} = await loadFilteringCopyLimits()
+        const filter = fc.oneof(
+            fc.constant(undefined),
+            fc.constant('rsa'),
+            fc.constant('pmax'),
+            fc.constant('meta'),
+            rejectedPlatform
+        )
+        const expectedByFilter = new Map<string | undefined, CopyLimitView[]>([
+            [undefined, D3],
+            ['rsa', RSA_LIMITS],
+            ['pmax', PMAX_LIMITS],
+            ['meta', META_LIMITS],
+        ])
+        const catalogueEntries = new Set<object>(COPY_LIMITS)
+        fc.assert(
+            fc.property(fc.array(filter, {minLength: 1, maxLength: 30}), (sequence) => {
+                const snapshot = structuredClone(COPY_LIMITS)
+                const firstResults = new Map<string | undefined, CopyLimitView[]>()
+                const firstMessages = new Map<string, string>()
+                for (const value of sequence) {
+                    const expected = expectedByFilter.get(value)
+                    if (expected === undefined && value !== undefined) {
+                        const error = captureError(() => listCopyLimits(value))
+                        expect(error).toBeInstanceOf(UnknownCopyPlatformError)
+                        const message = (error as Error).message
+                        expect(message).toBe(firstMessages.get(value) ?? message)
+                        firstMessages.set(value, message)
+                        continue
+                    }
+                    const result = listCopyLimits(value)
+                    expect(result).toEqual(expected)
+                    expect(result).not.toBe(COPY_LIMITS)
+                    expect(result.map((entry) => catalogueEntries.has(entry))).toEqual(result.map(() => false))
+                    const first = firstResults.get(value)
+                    if (first !== undefined) {
+                        expect(result).toEqual(first)
+                    } else {
+                        firstResults.set(value, structuredClone(result))
+                    }
+                    for (const entry of result) {
+                        entry.min = -1
+                        entry.maxChars = -1
+                    }
+                    result.push({platform: 'tiktok', field: 'captions', min: 1, max: 1, maxChars: 1})
+                }
+                expect(COPY_LIMITS).toEqual(snapshot)
+                expect(COPY_LIMITS).toEqual(freshD3())
+            })
+        )
     })
 })
