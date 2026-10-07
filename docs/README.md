@@ -1,4 +1,4 @@
-<!-- last-documented: aadaa2f624f72e528d0dd447b8676f45ffe861e6 -->
+<!-- last-documented: eba378299018b287dd14e2269b45bc3cd26b289a -->
 
 # Asset Generator
 
@@ -68,6 +68,9 @@ for the reusable validation interface.
 
 Ad format dimensions, reduced aspect ratios and safe zones can be listed with
 `pnpm formats [--platform <platform>] [--json]`. See [ad formats](reference/ad-formats.md#list-formats-from-the-cli).
+
+Copy field counts and character limits can be listed with
+`pnpm copy-limits [--platform <platform>] [--json]`. See [copy limits](reference/copy-limits.md#list-copy-limits-from-the-cli).
 
 | Area                                                                           | Contents                                                   |
 | ------------------------------------------------------------------------------ | ---------------------------------------------------------- |

@@ -76,6 +76,14 @@ exit codes; the domain remains pure, and validation does not modify run state.
 See the [copy reference](../reference/copy-limits.md) and
 [command reference](../reference/commands.md#validate-saved-copy) for the contracts.
 
+The ten count and character limits live in one read-only catalogue,
+`src/domain/validation/copyLimits.ts` (`COPY_LIMITS`, frozen). The three
+validators read their limits from it, so the numbers exist in one place. The
+`copy-limits` command (`src/services/copy-limits/cli.ts`) lists the catalogue
+through `listCopyLimits`, which returns fresh copies and rejects unknown
+platforms with `UnknownCopyPlatformError`. See
+[copy limits](../reference/copy-limits.md#list-copy-limits-from-the-cli).
+
 ## Format catalogue
 
 `src/domain/formatCatalogue.ts` is a pure read-only view over `AD_FORMATS`. It
