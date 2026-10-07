@@ -12,14 +12,6 @@ export interface BatchSummary {
     issuesByField: FieldIssueCount[]
 }
 
-/** Ordinal UTF-16 code-unit comparison, so ordering is locale-independent. */
-function compareOrdinal(left: string, right: string): number {
-    if (left < right) {
-        return -1
-    }
-    return left > right ? 1 : 0
-}
-
 /** Counts valid and invalid entries and tallies issue occurrences per verbatim field. */
 export function summarizeBatch(result: BatchValidationResult): BatchSummary {
     let valid = 0
@@ -35,7 +27,10 @@ export function summarizeBatch(result: BatchValidationResult): BatchSummary {
             counts.set(issue.field, (counts.get(issue.field) ?? 0) + 1)
         }
     }
-    const issuesByField: FieldIssueCount[] = [...counts].map(([field, count]) => ({field, count}))
-    issuesByField.sort((a, b) => b.count - a.count || compareOrdinal(a.field, b.field))
+    // Ordinal field order first (locale-independent); the stable count sort preserves it within ties.
+    const issuesByField: FieldIssueCount[] = [...counts]
+        .sort(([left], [right]) => (left < right ? -1 : 1))
+        .map(([field, count]) => ({field, count}))
+        .sort((a, b) => b.count - a.count)
     return {entries: result.results.length, valid, invalid, issuesByField}
 }
