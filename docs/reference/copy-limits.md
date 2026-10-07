@@ -1,8 +1,10 @@
 # Reference: copy limits
 
 Per-platform copy field counts and character limits enforced by
-`src/domain/validation/copy.ts`. All limits are validated both by the agent before
-saving and by the UI before leaving the review phase.
+`src/domain/validation/copy.ts`. The `COPY_LIMITS` catalogue in
+`src/domain/validation/copyLimits.ts` is the single source of the limits that
+`copy.ts` enforces; list it with `pnpm copy-limits`. All limits are validated both by
+the agent before saving and by the UI before leaving the review phase.
 
 ## Validate unknown input
 
@@ -193,3 +195,85 @@ block prefixed with the campaign slug and platform, e.g.
 | `CopyValidationResult`     | Type of the shared platform/valid/issues result.                           |
 | `validateCopyBatch(input)` | Validate a named batch and return ordered results plus aggregate validity. |
 | `BatchValidationResult`    | Type of the batch validation result (`valid` + `results`).                 |
+
+## List copy limits from the CLI
+
+`pnpm copy-limits [--platform <platform>] [--json]` prints the copy limits without opening
+`src/domain/validation/copy.ts`. The listing reads the same catalogue the validators enforce. It is read-only: it
+writes no files, makes no network calls and touches no runs or campaigns.
+
+| Option                  | Meaning                                                            |
+| ----------------------- | ------------------------------------------------------------------ |
+| `--platform <platform>` | List one platform only. Accepted values: `rsa`, `pmax` and `meta`. |
+| `--json`                | Print JSON instead of text.                                        |
+
+Each option may appear at most once, in any order. The value must follow `--platform` as a separate argument and must
+not start with `-`. Matching is exact: case-sensitive, with no trimming. `--help` and `--platform=meta` are usage errors.
+
+Text output has one line per field, `<platform> <field> <min>-<max> <maxChars>`, in validator order, with no header.
+`pnpm copy-limits` prints:
+
+```text
+rsa headlines 3-15 30
+rsa descriptions 2-4 90
+rsa paths 0-2 15
+pmax shortHeadlines 3-15 30
+pmax longHeadlines 1-5 90
+pmax descriptions 2-5 90
+pmax businessName 1-1 25
+meta primaryTexts 1-5 125
+meta headlines 1-5 40
+meta descriptions 1-5 25
+```
+
+JSON output is one compact line whose only key is `limits`. Each entry holds `platform`, `field`, `min`, `max` and
+`maxChars`. `pnpm copy-limits --platform meta --json` prints the following, shown here expanded by Prettier (the CLI
+itself writes it on one line):
+
+```json
+{
+    "limits": [
+        {
+            "platform": "meta",
+            "field": "primaryTexts",
+            "min": 1,
+            "max": 5,
+            "maxChars": 125
+        },
+        {
+            "platform": "meta",
+            "field": "headlines",
+            "min": 1,
+            "max": 5,
+            "maxChars": 40
+        },
+        {
+            "platform": "meta",
+            "field": "descriptions",
+            "min": 1,
+            "max": 5,
+            "maxChars": 25
+        }
+    ]
+}
+```
+
+| Code | Meaning                                                                                                | Streams                                      |
+| ---- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------- |
+| `0`  | The listing was printed.                                                                               | The listing on stdout, empty stderr.         |
+| `2`  | Usage error (unknown flag, positional argument, missing or repeated option value) or unknown platform. | Empty stdout, one diagnostic line on stderr. |
+
+A usage error prints `Usage: pnpm copy-limits [--platform <platform>] [--json]`. An unknown platform prints
+`Unknown platform "tiktok". Accepted values: rsa, pmax, meta.` and a usage error wins when both apply.
+
+Use `pnpm --silent copy-limits` for machine consumers: without it, pnpm prints an `[ELIFECYCLE]` line to stdout on
+failure.
+
+## Copy limit catalogue interface
+
+Import from `@/domain/validation/copyLimits`:
+
+- `COPY_LIMITS`: the frozen, read-only catalogue, one `CopyLimit` per platform field in validator order.
+- `CopyLimit`: the entry type, `{platform, field, min, max, maxChars}`.
+- `listCopyLimits(platform?: string): CopyLimit[]`: a fresh copy of the entries, all of them or one platform's.
+- `UnknownCopyPlatformError`: thrown by `listCopyLimits` for any platform other than `rsa`, `pmax` or `meta`.

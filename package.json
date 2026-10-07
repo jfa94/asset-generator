@@ -25,6 +25,7 @@
         "render": "tsx src/services/render/cli.ts",
         "validate-copy": "tsx src/services/validate-copy/cli.ts",
         "formats": "tsx src/services/formats/cli.ts",
+        "copy-limits": "tsx src/services/copy-limits/cli.ts",
         "dev": "next dev",
         "build": "next build",
         "start": "next start"

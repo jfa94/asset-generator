@@ -1,6 +1,7 @@
 // Platform copy rules from the ad-platform specs digested in the marketing reports:
 // Google RSA / PMax field counts + char limits, Meta visible-length limits.
 
+import {COPY_LIMITS, type CopyLimit} from '@/domain/validation/copyLimits'
 import type {MetaCopy, PmaxCopy, RsaCopy} from '@/types/copy'
 
 export type {MetaCopy, PmaxCopy, RsaCopy}
@@ -85,6 +86,14 @@ const segmenter = new Intl.Segmenter()
 /** Platform limits count characters (graphemes), not UTF-16 units. */
 export const charCount = (s: string): number => [...segmenter.segment(s)].length
 
+const limitFor = (platform: CopyLimit['platform'], field: string): CopyLimit => {
+    const limit = COPY_LIMITS.find((entry) => entry.platform === platform && entry.field === field)
+    if (!limit) {
+        throw new Error(`Missing copy limit for ${platform}.${field}`)
+    }
+    return limit
+}
+
 const checkList = (
     issues: CopyIssue[],
     field: string,
@@ -154,9 +163,9 @@ const checkNearDuplicates = (issues: CopyIssue[], field: string, items: string[]
 /** Google Responsive Search Ads: 15 H ≤30, 4 D ≤90, 2 paths ≤15, no near-dup headlines. */
 export const validateRsa = (copy: RsaCopy): CopyIssue[] => {
     const issues: CopyIssue[] = []
-    checkList(issues, 'headlines', copy.headlines, {min: 3, max: 15, maxChars: 30})
-    checkList(issues, 'descriptions', copy.descriptions, {min: 2, max: 4, maxChars: 90})
-    checkList(issues, 'paths', copy.paths, {min: 0, max: 2, maxChars: 15})
+    checkList(issues, 'headlines', copy.headlines, limitFor('rsa', 'headlines'))
+    checkList(issues, 'descriptions', copy.descriptions, limitFor('rsa', 'descriptions'))
+    checkList(issues, 'paths', copy.paths, limitFor('rsa', 'paths'))
     checkNearDuplicates(issues, 'headlines', copy.headlines)
     return issues
 }
@@ -164,10 +173,10 @@ export const validateRsa = (copy: RsaCopy): CopyIssue[] => {
 /** Google Performance Max / Demand Gen asset-group text. */
 export const validatePmax = (copy: PmaxCopy): CopyIssue[] => {
     const issues: CopyIssue[] = []
-    checkList(issues, 'shortHeadlines', copy.shortHeadlines, {min: 3, max: 15, maxChars: 30})
-    checkList(issues, 'longHeadlines', copy.longHeadlines, {min: 1, max: 5, maxChars: 90})
-    checkList(issues, 'descriptions', copy.descriptions, {min: 2, max: 5, maxChars: 90})
-    checkList(issues, 'businessName', [copy.businessName], {min: 1, max: 1, maxChars: 25})
+    checkList(issues, 'shortHeadlines', copy.shortHeadlines, limitFor('pmax', 'shortHeadlines'))
+    checkList(issues, 'longHeadlines', copy.longHeadlines, limitFor('pmax', 'longHeadlines'))
+    checkList(issues, 'descriptions', copy.descriptions, limitFor('pmax', 'descriptions'))
+    checkList(issues, 'businessName', [copy.businessName], limitFor('pmax', 'businessName'))
     checkNearDuplicates(issues, 'shortHeadlines', copy.shortHeadlines)
     return issues
 }
@@ -175,8 +184,8 @@ export const validatePmax = (copy: PmaxCopy): CopyIssue[] => {
 /** Meta Feed/Stories: primary ≤125 (visible before "See more"), headline ≤40, desc ≤25. */
 export const validateMeta = (copy: MetaCopy): CopyIssue[] => {
     const issues: CopyIssue[] = []
-    checkList(issues, 'primaryTexts', copy.primaryTexts, {min: 1, max: 5, maxChars: 125})
-    checkList(issues, 'headlines', copy.headlines, {min: 1, max: 5, maxChars: 40})
-    checkList(issues, 'descriptions', copy.descriptions, {min: 1, max: 5, maxChars: 25})
+    checkList(issues, 'primaryTexts', copy.primaryTexts, limitFor('meta', 'primaryTexts'))
+    checkList(issues, 'headlines', copy.headlines, limitFor('meta', 'headlines'))
+    checkList(issues, 'descriptions', copy.descriptions, limitFor('meta', 'descriptions'))
     return issues
 }
