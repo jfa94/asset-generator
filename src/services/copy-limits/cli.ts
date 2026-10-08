@@ -1,10 +1,13 @@
 import {pathToFileURL} from 'node:url'
-import {listCopyLimits, UnknownCopyPlatformError} from '@/domain/validation/copyLimits'
+import {listCopyLimits, UnknownCopyFieldError, UnknownCopyPlatformError} from '@/domain/validation/copyLimits'
 
 const USAGE = 'Usage: pnpm copy-limits [--platform <platform>] [--json]\n'
 
-function parseArgs(args: string[]): {platform: string | undefined; json: boolean} | undefined {
+function parseArgs(
+    args: string[]
+): {platform: string | undefined; field: string | undefined; json: boolean} | undefined {
     let platform: string | undefined
+    let field: string | undefined
     let json = false
     for (let i = 0; i < args.length; i++) {
         if (args[i] === '--json' && !json) {
@@ -12,13 +15,19 @@ function parseArgs(args: string[]): {platform: string | undefined; json: boolean
             continue
         }
         const value = args[i + 1]
-        if (args[i] !== '--platform' || platform !== undefined || value === undefined || value.startsWith('-')) {
+        if (value === undefined || value.startsWith('-')) {
             return undefined
         }
-        platform = value
+        if (args[i] === '--platform' && platform === undefined) {
+            platform = value
+        } else if (args[i] === '--field' && field === undefined) {
+            field = value
+        } else {
+            return undefined
+        }
         i++
     }
-    return {platform, json}
+    return {platform, field, json}
 }
 
 export function main(args: string[]): number {
@@ -28,7 +37,7 @@ export function main(args: string[]): number {
         return 2
     }
     try {
-        const limits = listCopyLimits(parsed.platform)
+        const limits = listCopyLimits(parsed.platform, parsed.field)
         if (parsed.json) {
             process.stdout.write(`${JSON.stringify({limits})}\n`)
         } else {
@@ -37,7 +46,7 @@ export function main(args: string[]): number {
             }
         }
     } catch (error) {
-        if (!(error instanceof UnknownCopyPlatformError)) {
+        if (!(error instanceof UnknownCopyPlatformError || error instanceof UnknownCopyFieldError)) {
             throw error
         }
         process.stderr.write(`${error.message}\n`)
