@@ -2,13 +2,17 @@ import {readFileSync} from 'node:fs'
 import {pathToFileURL} from 'node:url'
 import {CopyShapeError, validateCopy} from '@/domain/validation/copy'
 import {validateCopyBatch} from '@/domain/validation/batch'
+import {summarizeBatch} from '@/domain/validation/batchSummary'
 
-const USAGE = 'Usage: pnpm validate-copy <file.json>\n       pnpm validate-copy --batch <file.json>\n'
+const USAGE = 'Usage: pnpm validate-copy <file.json>\n       pnpm validate-copy --batch <file.json> [--summary]\n'
 
 export function main(args: string[]): number {
-    const isBatch = args[0] === '--batch'
-    const path = isBatch ? args[1] : args[0]
-    const validUsage = isBatch ? args.length === 2 : args.length === 1
+    const summaryFirst = args.length === 3 && args[0] === '--summary'
+    const isSummary = summaryFirst || (args.length === 3 && args[2] === '--summary')
+    const rest = summaryFirst ? args.slice(1) : isSummary ? args.slice(0, 2) : args
+    const isBatch = rest[0] === '--batch'
+    const path = isBatch ? rest[1] : rest[0]
+    const validUsage = isBatch ? rest.length === 2 : rest.length === 1
     if (!validUsage || path === undefined || path.startsWith('-')) {
         process.stderr.write(USAGE)
         return 2
@@ -33,7 +37,7 @@ export function main(args: string[]): number {
     try {
         if (isBatch) {
             const result = validateCopyBatch(input)
-            process.stdout.write(`${JSON.stringify(result)}\n`)
+            process.stdout.write(`${JSON.stringify(isSummary ? summarizeBatch(result) : result)}\n`)
             return result.valid ? 0 : 1
         }
         const result = validateCopy(input)

@@ -110,8 +110,9 @@ The command reads one UTF-8 JSON file holding a named batch of copies and
 validates every entry through the same [copy validator and limits](copy-limits.md)
 used by the single-file command above. The single-file command is unchanged.
 It writes no files and does not change campaigns or runs. Missing or extra
-arguments and unsupported options are usage errors. For filenames beginning
-with `-`, use a relative path such as `./-batch.json`.
+arguments and unsupported options are usage errors, except `--summary`, which
+[summarises copy issues by field](#summarise-copy-issues-by-field). For
+filenames beginning with `-`, use a relative path such as `./-batch.json`.
 
 A batch input is an object holding an `entries` array of at least one entry,
 each with a unique nonempty (after trimming) `id`, a `platform` and a `copy`
@@ -209,6 +210,85 @@ entry whose `platform`/`copy` breaks the single-file shape rules are shape
 errors, not ordinary rule issues: the batch throws on the first one, in
 left-to-right order, and no partial results are printed. Repeated validation
 of one batch file preserves input bytes and produces identical results.
+
+## Summarise copy issues by field
+
+```bash
+pnpm validate-copy --batch "campaign batch.json" --summary
+# Suppress pnpm's script-launch chatter for machine-readable stdout:
+pnpm --silent validate-copy --batch "campaign batch.json" --summary
+```
+
+Instead of one result per entry, `--summary` prints one compact JSON line that
+counts the entries and the issues by field, so you can see which fields break
+most often. The batch is validated exactly as above, with the same exit codes
+and diagnostics, and no files are written.
+
+`--summary` is accepted only with `--batch`, either before or after
+`--batch <file.json>`: both `--batch "campaign batch.json" --summary` and
+`--summary --batch "campaign batch.json"` print the same bytes. Running
+`--summary` without `--batch` is a usage error, as is repeating `--summary`,
+passing a value to it or adding any other argument.
+
+Given a batch with one valid entry and two Meta entries that break platform
+rules:
+
+```json
+{
+    "entries": [
+        {
+            "id": "rsa-privacy",
+            "platform": "rsa",
+            "copy": {
+                "headlines": ["Own your privacy", "No renewals, ever", "Data brokers, gone"],
+                "descriptions": ["Buy once and keep control.", "Remove your personal data."],
+                "paths": []
+            }
+        },
+        {
+            "id": "meta-no-primary",
+            "platform": "meta",
+            "copy": {
+                "primaryTexts": [],
+                "headlines": ["Own your privacy"],
+                "descriptions": ["One purchase"]
+            }
+        },
+        {
+            "id": "meta-empty",
+            "platform": "meta",
+            "copy": {
+                "primaryTexts": [],
+                "headlines": [],
+                "descriptions": []
+            }
+        }
+    ]
+}
+```
+
+stdout is a single line, shown here formatted. `issuesByField` counts issue
+occurrences per exact field name, ordered by `count` descending and then by
+field name in code-unit order:
+
+```json
+{
+    "entries": 3,
+    "valid": 1,
+    "invalid": 2,
+    "issuesByField": [
+        {"field": "primaryTexts", "count": 2},
+        {"field": "descriptions", "count": 1},
+        {"field": "headlines", "count": 1}
+    ]
+}
+```
+
+| Exit code | Meaning                                                              | Streams                                                           |
+| --------- | -------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `0`       | Every entry is valid.                                                | JSON summary line on stdout; empty stderr.                        |
+| `1`       | Batch is well-shaped but at least one entry violates platform rules. | JSON summary line on stdout; empty stderr.                        |
+| `2`       | Bad usage, unreadable file, malformed JSON or invalid batch shape.   | Empty stdout; concise diagnostic on stderr without a stack trace. |
 
 ## Quality commands
 
