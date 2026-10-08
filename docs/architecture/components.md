@@ -80,11 +80,9 @@ The ten count and character limits live in one read-only catalogue,
 `src/domain/validation/copyLimits.ts` (`COPY_LIMITS`, frozen). The three
 validators read their limits from it, so the numbers exist in one place. The
 `copy-limits` command (`src/services/copy-limits/cli.ts`) lists the catalogue
-through `listCopyLimits`, which returns fresh copies, optionally filtered by
-platform and field, and rejects unknown platforms and fields with
-`UnknownCopyPlatformError` and `UnknownCopyFieldError`. See
-[copy limits](../reference/copy-limits.md#list-copy-limits-from-the-cli) and
-[filter by field](../reference/copy-limits.md#filter-copy-limits-by-field).
+through `listCopyLimits`, which returns fresh copies and rejects unknown
+platforms with `UnknownCopyPlatformError`. See
+[copy limits](../reference/copy-limits.md#list-copy-limits-from-the-cli).
 
 ## Format catalogue
 

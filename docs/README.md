@@ -1,4 +1,4 @@
-<!-- last-documented: 52d3e2ba1ff702f8e1bfb76d238a1c9b3205c054 -->
+<!-- last-documented: eba378299018b287dd14e2269b45bc3cd26b289a -->
 
 # Asset Generator
 
