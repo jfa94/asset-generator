@@ -2,3 +2,5 @@ allowBuilds:
     esbuild: true
     puppeteer: true
     sharp: true
+overrides:
+    source-map-js: '>=1.2.2'

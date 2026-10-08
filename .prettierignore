@@ -7,3 +7,7 @@ node_modules/
 .github/workflows/
 docs/factory/
 pnpm-lock.yaml
+# factory plugin: rendered by `factory scaffold`, kept byte-identical to its template
+.github/workflows/quality-gate.yml
+.github/workflows/mutation-nightly.yml
+.factory/

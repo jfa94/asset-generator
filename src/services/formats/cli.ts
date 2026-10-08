@@ -1,10 +1,17 @@
 import {pathToFileURL} from 'node:url'
-import {listFormats, UnknownPlatformError} from '@/domain/formatCatalogue'
+import {InvalidAspectRatioError, listFormats, UnknownPlatformError} from '@/domain/formatCatalogue'
 
 const USAGE = 'Usage: pnpm formats [--platform <platform>] [--json]\n'
 
-function parseArgs(args: string[]): {platform: string | undefined; json: boolean} | undefined {
+interface ParsedArgs {
+    platform: string | undefined
+    aspect: string | undefined
+    json: boolean
+}
+
+function parseArgs(args: string[]): ParsedArgs | undefined {
     let platform: string | undefined
+    let aspect: string | undefined
     let json = false
     for (let i = 0; i < args.length; i++) {
         if (args[i] === '--json' && !json) {
@@ -12,13 +19,19 @@ function parseArgs(args: string[]): {platform: string | undefined; json: boolean
             continue
         }
         const value = args[i + 1]
-        if (args[i] !== '--platform' || platform !== undefined || value === undefined || value.startsWith('-')) {
+        if (value === undefined || value.startsWith('-')) {
             return undefined
         }
-        platform = value
+        if (args[i] === '--platform' && platform === undefined) {
+            platform = value
+        } else if (args[i] === '--aspect' && aspect === undefined) {
+            aspect = value
+        } else {
+            return undefined
+        }
         i++
     }
-    return {platform, json}
+    return {platform, aspect, json}
 }
 
 export function main(args: string[]): number {
@@ -28,7 +41,7 @@ export function main(args: string[]): number {
         return 2
     }
     try {
-        const formats = listFormats(parsed.platform)
+        const formats = listFormats(parsed.platform, parsed.aspect)
         if (parsed.json) {
             process.stdout.write(`${JSON.stringify({formats})}\n`)
         } else {
@@ -37,7 +50,7 @@ export function main(args: string[]): number {
             }
         }
     } catch (error) {
-        if (!(error instanceof UnknownPlatformError)) {
+        if (!(error instanceof UnknownPlatformError || error instanceof InvalidAspectRatioError)) {
             throw error
         }
         process.stderr.write(`${error.message}\n`)
