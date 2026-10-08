@@ -34,11 +34,24 @@ export class UnknownCopyPlatformError extends Error {
     }
 }
 
-export function listCopyLimits(platform?: string): CopyLimit[] {
+const ACCEPTED_FIELDS: readonly string[] = [...new Set(COPY_LIMITS.map(({field}) => field))]
+
+export class UnknownCopyFieldError extends Error {
+    constructor(value: string) {
+        super(`Unknown field ${JSON.stringify(value)}. Accepted values: ${ACCEPTED_FIELDS.join(', ')}.`)
+        this.name = 'UnknownCopyFieldError'
+    }
+}
+
+export function listCopyLimits(platform?: string, field?: string): CopyLimit[] {
     if (platform !== undefined && !ACCEPTED_PLATFORMS.includes(platform)) {
         throw new UnknownCopyPlatformError(platform)
     }
-    return COPY_LIMITS.filter((limit) => platform === undefined || limit.platform === platform).map(
-        ({platform, field, min, max, maxChars}) => ({platform, field, min, max, maxChars})
-    )
+    if (field !== undefined && !ACCEPTED_FIELDS.includes(field)) {
+        throw new UnknownCopyFieldError(field)
+    }
+    return COPY_LIMITS.filter(
+        (limit) =>
+            (platform === undefined || limit.platform === platform) && (field === undefined || limit.field === field)
+    ).map(({platform, field, min, max, maxChars}) => ({platform, field, min, max, maxChars}))
 }
